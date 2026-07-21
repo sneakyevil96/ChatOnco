@@ -9,7 +9,7 @@ They share one implementation but keep separate project configuration, operator 
 
 ## Current status
 
-Phases 1 and 2 provide the local platform and project-isolated data foundation:
+Phases 1–3 provide the local platform, project-isolated data foundation, and operator authentication:
 
 - FastAPI application with liveness and database-readiness endpoints;
 - validated project configuration for ONCODIR and ONCOSCREEN;
@@ -25,8 +25,13 @@ Phases 1 and 2 provide the local platform and project-isolated data foundation:
 - database-enforced one-active-ticket-per-conversation semantics;
 - project-scoped repository foundations and PostgreSQL isolation tests;
 - database records synchronized from the validated deployment configuration.
+- Argon2id application-managed authentication with forced first-login password change;
+- opaque server-side sessions, signed/session-bound CSRF protection, and secure cookie policy;
+- database-backed login throttling, account lockout, password reset, and session revocation;
+- project-scoped operator and administrator authorization with audited account actions;
+- protected React routes for login, password management, project selection, and operator administration.
 
-The current foundation does **not** contain authentication workflows, ticket orchestration, real Meta integration, real FAQ content, or production deployment configuration.
+The current foundation does **not** contain ticket orchestration, real Meta integration, real FAQ content, MFA, or production deployment configuration.
 
 ## Local prerequisites
 
@@ -58,6 +63,16 @@ Backend commands are run from `backend/` after installing the development depend
 - `uvicorn app.main:app --reload`
 
 Docker Compose applies migrations and synchronizes the validated ONCODIR and ONCOSCREEN configuration automatically when the local backend starts.
+
+## First local administrator
+
+There is no public registration endpoint. After the stack is running, an authorized developer can create the first administrator with:
+
+`docker compose exec backend python -m app.commands.bootstrap_admin --project ONCODIR --email administrator@example.invalid`
+
+The command generates a temporary password, displays it once, assigns the explicit project membership, records a bootstrap audit event, and requires a password change at first login. Repeat with the appropriate project and authorized institutional email when configuring another project; do not use example credentials in production.
+
+Local HTTP cookies intentionally omit `Secure` so the Compose environment works at `http://localhost:8080`. Staging and production settings require HTTPS, deployment-specific security keys, and `Secure` cookies.
 
 Frontend commands are run from `frontend/`:
 

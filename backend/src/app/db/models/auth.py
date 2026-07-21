@@ -32,6 +32,8 @@ class OperatorAccount(UuidPrimaryKeyMixin, TimestampMixin, Base):
     lockout_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class OperatorProjectMembership(
@@ -99,3 +101,13 @@ class PasswordResetCredential(UuidPrimaryKeyMixin, TimestampMixin, Base):
         ),
     )
 
+
+class LoginRateLimit(TimestampMixin, Base):
+    __tablename__ = "login_rate_limits"
+
+    bucket_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    window_started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    blocked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

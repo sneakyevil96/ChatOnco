@@ -7,18 +7,11 @@ export interface PublicProject {
   project_id: "ONCODIR" | "ONCOSCREEN";
   public_name: string;
   branding: ProjectBranding;
+  membership_id: string;
+  role: "operator" | "administrator";
 }
 
 export async function getProjects(): Promise<PublicProject[]> {
-  const response = await fetch("/api/v1/projects", {
-    credentials: "same-origin",
-    headers: { Accept: "application/json" },
-  });
-
-  if (!response.ok) {
-    throw new Error("Project configuration request failed");
-  }
-
-  return response.json() as Promise<PublicProject[]>;
+  return apiRequest("/api/v1/projects");
 }
-
+import { apiRequest } from "./client";

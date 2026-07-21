@@ -13,6 +13,8 @@ describe("ProjectCard", () => {
             project_id: "ONCODIR",
             public_name: "Nume public configurat",
             branding: { primary_color: "#245B78", logo_url: null },
+            membership_id: "synthetic-membership",
+            role: "operator",
           }}
         />
       </MemoryRouter>,

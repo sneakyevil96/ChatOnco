@@ -21,7 +21,7 @@ def test_catalog_loads_both_projects_with_whatsapp_disabled() -> None:
     assert all(project.content_status == "development_placeholder" for project in catalog.all())
 
 
-def test_public_api_exposes_no_whatsapp_or_retention_configuration() -> None:
+def test_project_api_requires_authentication() -> None:
     async def request_projects():
         app = create_app()
         async with app.router.lifespan_context(app):
@@ -33,7 +33,4 @@ def test_public_api_exposes_no_whatsapp_or_retention_configuration() -> None:
 
     response = asyncio.run(request_projects())
 
-    assert response.status_code == 200
-    payload = response.json()
-    assert [project["project_id"] for project in payload] == ["ONCODIR", "ONCOSCREEN"]
-    assert all(set(project) == {"project_id", "public_name", "branding"} for project in payload)
+    assert response.status_code == 401

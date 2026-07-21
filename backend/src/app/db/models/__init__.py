@@ -1,5 +1,6 @@
 from app.db.models.audit import AuditEvent
 from app.db.models.auth import (
+    LoginRateLimit,
     OperatorAccount,
     OperatorProjectMembership,
     OperatorSession,
@@ -30,6 +31,7 @@ __all__ = [
     "FaqItem",
     "FaqVersion",
     "InternalNote",
+    "LoginRateLimit",
     "OperatorAccount",
     "OperatorNotification",
     "OperatorProjectMembership",
@@ -43,4 +45,3 @@ __all__ = [
     "WhatsAppMessage",
     "WhatsAppTemplate",
 ]
-

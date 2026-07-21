@@ -3,6 +3,18 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router"],
+          "mui-vendor": ["@emotion/react", "@emotion/styled", "@mui/material"],
+          "query-vendor": ["@tanstack/react-query"],
+          "forms-vendor": ["react-hook-form", "zod"],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {
