@@ -1,0 +1,32 @@
+{
+  "project_id": "ONCOSCREEN",
+  "public_name": "ONCOSCREEN",
+  "content_status": "development_placeholder",
+  "faq_collection_key": "oncoscreen",
+  "contact_information": null,
+  "branding": {
+    "primary_color": "#5B3F8C",
+    "logo_url": null
+  },
+  "messages": {
+    "fallback": "Nu cunosc răspunsul la această întrebare. Solicitarea dumneavoastră a fost transmisă unui coleg, care vă va contacta pe WhatsApp.",
+    "privacy_warning": "Acest chatbot oferă informații administrative despre proiectul de screening. Vă rugăm să nu trimiteți CNP-uri, rezultate medicale, documente medicale, fotografii ale documentelor sau alte informații medicale sensibile.",
+    "unsupported_message": "Momentan, chatbotul poate procesa doar mesaje text. Solicitarea dumneavoastră a fost transmisă unui coleg, care vă va răspunde pe WhatsApp. Vă rugăm să nu trimiteți CNP-uri, rezultate medicale, documente medicale sau fotografii care conțin date personale."
+  },
+  "retention": {
+    "message_content_days": 90,
+    "tickets_and_notes_days": 365,
+    "audit_events_days": 730,
+    "application_logs_days": 90,
+    "backups_days": 30,
+    "privacy_warning_inactivity_days": 30,
+    "resolved_ticket_reopen_days": 7
+  },
+  "whatsapp": {
+    "enabled": false,
+    "phone_number_id": null,
+    "credential_binding": null,
+    "templates": []
+  }
+}
+

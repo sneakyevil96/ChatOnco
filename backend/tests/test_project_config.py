@@ -1,0 +1,39 @@
+import asyncio
+from pathlib import Path
+
+from httpx import ASGITransport, AsyncClient
+
+from app.core.project_config import ProjectCatalog, ProjectId
+from app.main import create_app
+
+
+PROJECT_CONFIG_DIR = Path(__file__).parents[1] / "config" / "projects"
+
+
+def test_catalog_loads_both_projects_with_whatsapp_disabled() -> None:
+    catalog = ProjectCatalog.load(PROJECT_CONFIG_DIR)
+
+    assert [project.project_id for project in catalog.all()] == [
+        ProjectId.ONCODIR,
+        ProjectId.ONCOSCREEN,
+    ]
+    assert all(not project.whatsapp.enabled for project in catalog.all())
+    assert all(project.content_status == "development_placeholder" for project in catalog.all())
+
+
+def test_public_api_exposes_no_whatsapp_or_retention_configuration() -> None:
+    async def request_projects():
+        app = create_app()
+        async with app.router.lifespan_context(app):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                return await client.get("/api/v1/projects")
+
+    response = asyncio.run(request_projects())
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [project["project_id"] for project in payload] == ["ONCODIR", "ONCOSCREEN"]
+    assert all(set(project) == {"project_id", "public_name", "branding"} for project in payload)
