@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     initial_lockout_minutes: int = 15
     login_rate_limit_attempts: int = 10
     login_rate_limit_window_minutes: int = 15
+    outbox_poll_seconds: float = 2.0
+    outbox_claim_seconds: int = 60
+    outbox_max_attempts: int = 5
 
     @property
     def cookie_secure(self) -> bool:

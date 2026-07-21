@@ -54,6 +54,25 @@ class WhatsAppConfig(BaseModel):
         return self
 
 
+class FaqRetrievalConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    semantic_enabled: bool = False
+    semantic_threshold: float | None = Field(default=None, ge=-1, le=1)
+    minimum_score_gap: float | None = Field(default=None, ge=0, le=2)
+
+    @model_validator(mode="after")
+    def require_calibrated_thresholds_when_enabled(self) -> "FaqRetrievalConfig":
+        if self.semantic_enabled and (
+            self.semantic_threshold is None or self.minimum_score_gap is None
+        ):
+            raise ValueError(
+                "Semantic FAQ retrieval requires a calibrated threshold and score gap"
+            )
+        return self
+
+
 class ProjectConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -65,6 +84,7 @@ class ProjectConfig(BaseModel):
     branding: BrandingConfig
     messages: MessageConfig
     retention: RetentionConfig
+    faq_retrieval: FaqRetrievalConfig
     whatsapp: WhatsAppConfig
 
 
@@ -99,4 +119,3 @@ class ProjectCatalog:
 
     def all(self) -> tuple[ProjectConfig, ...]:
         return tuple(self._projects[project_id] for project_id in ProjectId)
-

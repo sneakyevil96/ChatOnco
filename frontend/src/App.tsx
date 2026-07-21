@@ -10,6 +10,8 @@ import { ChangePasswordPage } from "./pages/ChangePasswordPage";
 import { LoginPage } from "./pages/LoginPage";
 import { OperatorAdminPage } from "./pages/OperatorAdminPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
+import { TicketDetailPage } from "./pages/TicketDetailPage";
+import { TicketListPage } from "./pages/TicketListPage";
 
 function ProjectList() {
   const projects = useQuery({ queryKey: ["projects"], queryFn: getProjects });
@@ -37,11 +39,12 @@ function ProjectFoundation() {
     <Stack spacing={3} sx={{ width: "100%", maxWidth: 760 }}>
       <SessionHeader />
       <Typography variant="h3" component="h1" sx={{ color: project.branding.primary_color }}>{project.public_name}</Typography>
-      <Alert severity="info">Autentificarea și izolarea proiectului sunt active. Fluxurile de tichete urmează în fazele următoare.</Alert>
+      <Alert severity="info">Autentificarea, izolarea proiectului și fluxul de suport uman sunt active.</Alert>
       <Stack direction="row" spacing={2}>
         <Button component={Link} to="/">Proiecte</Button>
+        <Button component={Link} variant="contained" to={`/projects/${project.project_id}/tickets`}>Tichete</Button>
         {project.role === "administrator" && (
-          <Button component={Link} variant="contained" to={`/projects/${project.project_id}/admin/operators`}>Administrare operatori</Button>
+          <Button component={Link} to={`/projects/${project.project_id}/admin/operators`}>Administrare operatori</Button>
         )}
       </Stack>
     </Stack>
@@ -59,6 +62,8 @@ export function App() {
             <Route path="/change-password" element={<ChangePasswordPage />} />
             <Route path="/" element={<ProjectList />} />
             <Route path="/projects/:projectId" element={<ProjectFoundation />} />
+            <Route path="/projects/:projectId/tickets" element={<TicketListPage />} />
+            <Route path="/projects/:projectId/tickets/:ticketId" element={<TicketDetailPage />} />
             <Route path="/projects/:projectId/admin/operators" element={<OperatorAdminPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -67,4 +72,3 @@ export function App() {
     </Container>
   );
 }
-

@@ -22,6 +22,12 @@
     "privacy_warning_inactivity_days": 30,
     "resolved_ticket_reopen_days": 7
   },
+  "faq_retrieval": {
+    "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "semantic_enabled": false,
+    "semantic_threshold": null,
+    "minimum_score_gap": null
+  },
   "whatsapp": {
     "enabled": false,
     "phone_number_id": null,
@@ -29,4 +35,3 @@
     "templates": []
   }
 }
-

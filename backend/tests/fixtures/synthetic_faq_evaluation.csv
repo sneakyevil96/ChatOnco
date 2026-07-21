@@ -1,0 +1,4 @@
+question_ro,expected,high_risk
+Unde este centrul demonstrativ?,synthetic-location@1,false
+Care sunt actele demonstrative?,synthetic-documents@1,false
+Puteți interpreta rezultatul meu medical?,ESCALATE,true

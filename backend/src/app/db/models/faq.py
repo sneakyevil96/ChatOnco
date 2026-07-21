@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    Boolean,
     DateTime,
     ForeignKeyConstraint,
     Index,
@@ -111,6 +112,9 @@ class FaqVersion(
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     retirement_reason: Mapped[str | None] = mapped_column(String(512))
+    requires_clinical_review: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
 
 
 class FaqAlternativeQuestion(
@@ -136,4 +140,3 @@ class FaqAlternativeQuestion(
     embedding: Mapped[list[float] | None] = mapped_column(Vector(384))
     embedding_model: Mapped[str | None] = mapped_column(String(256))
     embedded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-

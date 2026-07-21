@@ -1,6 +1,3 @@
-project_id,faq_version,question,approved_answer,fixture_only
-ONCODIR,SYNTHETIC-1,Unde este centrul demonstrativ?,Centrul demonstrativ fictiv este pe Strada Exemplu 1.,true
-ONCODIR,SYNTHETIC-1,Ce document fictiv trebuie să aduc?,Pentru scenariul de test este necesar documentul fictiv A.,true
-ONCOSCREEN,SYNTHETIC-1,Cine este contactul demonstrativ?,Contactul fictiv pentru test este Operator Exemplu.,true
-ONCOSCREEN,SYNTHETIC-1,La ce oră începe programul de test?,Programul fictiv începe la ora 09:00.,true
-
+logical_key,version_number,approved_answer_ro,approved_answer_en,alternative_questions_ro,administrative_reviewer_reference,clinical_reviewer_reference,reviewed_at,valid_from,valid_until,requires_clinical_review
+synthetic-location,1,Centrul demonstrativ fictiv este pe Strada Exemplu 1.,,"Unde este centrul demonstrativ?||Unde trebuie să merg pentru test?",synthetic-project-lead,,2026-07-21T10:00:00+03:00,,,false
+synthetic-documents,1,Pentru scenariul de test este necesar documentul fictiv A.,,"Ce document fictiv trebuie să aduc?||Care sunt actele demonstrative?",synthetic-project-lead,,2026-07-21T10:00:00+03:00,,,false

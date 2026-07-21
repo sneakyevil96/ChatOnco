@@ -18,5 +18,9 @@ RUN pip install --no-cache-dir .
 FROM base AS development
 RUN pip install --no-cache-dir --editable ".[dev]"
 
+FROM base AS development-embeddings
+RUN pip install --no-cache-dir --editable ".[dev,embeddings]"
+
 FROM base AS production
+RUN pip install --no-cache-dir ".[embeddings]"
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
