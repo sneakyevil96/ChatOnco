@@ -11,12 +11,12 @@ COPY src ./src
 COPY config ./config
 COPY alembic.ini ./
 COPY alembic ./alembic
+COPY scripts ./scripts
 
 RUN pip install --no-cache-dir .
 
 FROM base AS development
-RUN pip install --no-cache-dir ".[dev]"
+RUN pip install --no-cache-dir --editable ".[dev]"
 
 FROM base AS production
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-

@@ -9,7 +9,7 @@ They share one implementation but keep separate project configuration, operator 
 
 ## Current status
 
-Phase 1 provides the local platform foundation:
+Phases 1 and 2 provide the local platform and project-isolated data foundation:
 
 - FastAPI application with liveness and database-readiness endpoints;
 - validated project configuration for ONCODIR and ONCOSCREEN;
@@ -20,8 +20,13 @@ Phase 1 provides the local platform foundation:
 - Caddy as the local single entry point;
 - backend and frontend test foundations;
 - explicitly synthetic FAQ fixtures for automated tests only.
+- project-owned SQLAlchemy entities and an initial Alembic migration;
+- composite foreign keys that reject cross-project relationships;
+- database-enforced one-active-ticket-per-conversation semantics;
+- project-scoped repository foundations and PostgreSQL isolation tests;
+- database records synchronized from the validated deployment configuration.
 
-Phase 1 does **not** contain ticket persistence, authentication, real Meta integration, real FAQ content, or production deployment configuration.
+The current foundation does **not** contain authentication workflows, ticket orchestration, real Meta integration, real FAQ content, or production deployment configuration.
 
 ## Local prerequisites
 
@@ -49,7 +54,10 @@ Backend commands are run from `backend/` after installing the development depend
 
 - `pytest`
 - `alembic upgrade head`
+- `python -m app.commands.sync_projects`
 - `uvicorn app.main:app --reload`
+
+Docker Compose applies migrations and synchronizes the validated ONCODIR and ONCOSCREEN configuration automatically when the local backend starts.
 
 Frontend commands are run from `frontend/`:
 

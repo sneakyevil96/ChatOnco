@@ -26,7 +26,8 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://screening_local:local-development-only@postgres:5432/screening_platform}
       PROJECT_CONFIG_DIR: ${PROJECT_CONFIG_DIR:-/workspace/backend/config/projects}
       WHATSAPP_PROVIDER: ${WHATSAPP_PROVIDER:-mock}
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      RUN_DATABASE_TESTS: "1"
+    command: ["sh", "scripts/start-local.sh"]
     working_dir: /workspace/backend
     volumes:
       - ./backend:/workspace/backend
