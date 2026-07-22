@@ -80,12 +80,14 @@ async def escalate_inbound_text(
     *,
     project_id: str,
     whatsapp_user_id: str,
-    text: str,
+    text: str | None,
     meta_message_id: str | None = None,
     phone_number_e164: str | None = None,
     received_at: datetime | None = None,
+    message_type: MessageType = MessageType.TEXT,
+    attachment_metadata: dict | None = None,
 ) -> InboundEscalationResult:
-    """Persist an inbound text after the FAQ layer has decided to escalate it.
+    """Persist an inbound message after the deterministic bot has escalated it.
 
     This service is provider-independent and is exercised with synthetic data in
     Phase 4. A later Meta webhook adapter can call the same transaction boundary.
@@ -258,8 +260,9 @@ async def escalate_inbound_text(
         meta_message_id=meta_message_id,
         direction=MessageDirection.INBOUND,
         sender_type=MessageSenderType.USER,
-        message_type=MessageType.TEXT,
+        message_type=message_type,
         text_content=text,
+        attachment_metadata=attachment_metadata,
         delivery_status=DeliveryStatus.RECEIVED,
         provider_timestamp=now,
     )

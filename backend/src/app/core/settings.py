@@ -24,7 +24,12 @@ class Settings(BaseSettings):
         "screening_platform"
     )
     project_config_dir: Path = default_project_config_dir()
-    whatsapp_provider: Literal["mock"] = "mock"
+    whatsapp_provider: Literal["mock", "meta"] = "mock"
+    whatsapp_secret_file: Path | None = None
+    meta_graph_api_version: str | None = None
+    meta_graph_api_base_url: str = "https://graph.facebook.com"
+    meta_request_timeout_seconds: float = 15.0
+    whatsapp_webhook_max_bytes: int = 1_000_000
     csrf_signing_key: str = "local-csrf-signing-key-change-before-deployment"
     security_hash_key: str = "local-security-hash-key-change-before-deployment"
     allowed_browser_origins: str = "http://localhost:8080,http://localhost:5173"
@@ -62,6 +67,11 @@ class Settings(BaseSettings):
                 raise ValueError("A deployment-specific CSRF signing key is required")
             if self.security_hash_key.startswith("local-"):
                 raise ValueError("A deployment-specific security hash key is required")
+        if self.whatsapp_provider == "meta":
+            if self.whatsapp_secret_file is None:
+                raise ValueError("Meta WhatsApp requires a deployment secret file")
+            if not self.meta_graph_api_version:
+                raise ValueError("Meta WhatsApp requires an explicit Graph API version")
         return self
 
 

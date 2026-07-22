@@ -21,7 +21,11 @@ from app.db.models.faq import (
 )
 from app.db.models.outbox import OutboxEntry
 from app.db.models.project import Project, RetentionPolicy
-from app.db.models.whatsapp import ProjectWhatsAppConfiguration, WhatsAppTemplate
+from app.db.models.whatsapp import (
+    ProjectWhatsAppConfiguration,
+    WhatsAppTemplate,
+    WhatsAppWebhookEvent,
+)
 
 __all__ = [
     "AuditEvent",
@@ -44,4 +48,5 @@ __all__ = [
     "Ticket",
     "WhatsAppMessage",
     "WhatsAppTemplate",
+    "WhatsAppWebhookEvent",
 ]

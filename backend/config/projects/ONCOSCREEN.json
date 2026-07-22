@@ -32,6 +32,9 @@
     "enabled": false,
     "phone_number_id": null,
     "credential_binding": null,
+    "webhook_binding": null,
+    "unsupported_warning_cooldown_minutes": 10,
+    "interactive_actions": {},
     "templates": []
   }
 }

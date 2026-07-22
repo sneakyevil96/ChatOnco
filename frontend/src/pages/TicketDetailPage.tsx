@@ -23,14 +23,17 @@ import {
   addInternalNote,
   claimTicket,
   closeTicket,
+  getApprovedTemplates,
   getTicket,
   markTicketWaitingUser,
   reassignTicket,
   releaseTicket,
   reopenTicket,
   replyToTicket,
+  replyToTicketWithTemplate,
   resolveTicket,
   type TicketMessage,
+  type WhatsAppTemplate,
 } from "../api/tickets";
 import { DeliveryStatusChip, TicketStatusChip } from "../components/TicketStatusChip";
 import { SessionHeader } from "../components/SessionHeader";
@@ -90,6 +93,8 @@ export function TicketDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [targetMembership, setTargetMembership] = useState("");
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState("");
+  const [templateParameters, setTemplateParameters] = useState<string[]>([]);
   const replyForm = useForm<ReplyFields>({ defaultValues: { text: "" } });
   const noteForm = useForm<NoteFields>({ defaultValues: { content: "" } });
   const ticket = useQuery({
@@ -102,6 +107,11 @@ export function TicketDetailPage() {
     queryKey: ["operators", projectId],
     queryFn: () => getOperators(projectId),
     enabled: membership?.role === "administrator",
+  });
+  const templates = useQuery({
+    queryKey: ["whatsapp-templates", projectId],
+    queryFn: () => getApprovedTemplates(projectId),
+    enabled: Boolean(membership),
   });
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["ticket", projectId, ticketId] });
@@ -145,6 +155,20 @@ export function TicketDetailPage() {
     },
     onError: (reason) => setError(reason instanceof ApiError ? reason.message : "Răspunsul nu a putut fi trimis."),
   });
+  const templateReply = useMutation({
+    mutationFn: ({ template, parameters }: { template: WhatsAppTemplate; parameters: string[] }) =>
+      replyToTicketWithTemplate(projectId, ticketId, template, parameters),
+    onSuccess: () => {
+      setSelectedTemplateKey("");
+      setTemplateParameters([]);
+      setNotice("Șablonul aprobat a fost înregistrat în coada de trimitere WhatsApp.");
+      setError(null);
+      refresh();
+    },
+    onError: (reason) => setError(
+      reason instanceof ApiError ? reason.message : "Șablonul nu a putut fi trimis.",
+    ),
+  });
   const note = useMutation({
     mutationFn: (values: NoteFields) => addInternalNote(projectId, ticketId, values.content),
     onSuccess: () => {
@@ -177,6 +201,9 @@ export function TicketDetailPage() {
   const canWrite = canManage;
   const availableOperators = operators.data?.filter(
     (operator) => operator.membership_active && !operator.account_disabled,
+  );
+  const selectedTemplate = templates.data?.find(
+    (template) => `${template.template_name}:${template.language_code}` === selectedTemplateKey,
   );
 
   return (
@@ -297,6 +324,68 @@ export function TicketDetailPage() {
               >
                 Trimite prin WhatsApp
               </Button>
+            </Stack>
+          )}
+          {isActive && canManage && !detail.customer_service_window_open && (
+            <Stack spacing={2}>
+              <Typography variant="subtitle2">Răspuns prin șablon WhatsApp aprobat</Typography>
+              {templates.data?.length === 0 && (
+                <Alert severity="warning">Nu există încă șabloane aprobate configurate pentru acest proiect.</Alert>
+              )}
+              {Boolean(templates.data?.length) && (
+                <>
+                  <TextField
+                    select
+                    label="Șablon aprobat"
+                    value={selectedTemplateKey}
+                    onChange={(event) => {
+                      const key = event.target.value;
+                      setSelectedTemplateKey(key);
+                      const selected = templates.data?.find(
+                        (template) => `${template.template_name}:${template.language_code}` === key,
+                      );
+                      setTemplateParameters(Array(selected?.body_parameter_count ?? 0).fill(""));
+                    }}
+                  >
+                    {templates.data?.map((template) => (
+                      <MenuItem
+                        key={`${template.template_name}:${template.language_code}`}
+                        value={`${template.template_name}:${template.language_code}`}
+                      >
+                        {template.purpose} ({template.language_code})
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  {selectedTemplate && (
+                    <Alert severity="info" icon={false}>{selectedTemplate.approved_body_snapshot}</Alert>
+                  )}
+                  {templateParameters.map((value, index) => (
+                    <TextField
+                      key={index}
+                      label={`Parametru șablon ${index + 1}`}
+                      value={value}
+                      onChange={(event) => setTemplateParameters((current) =>
+                        current.map((item, itemIndex) => itemIndex === index ? event.target.value : item)
+                      )}
+                    />
+                  ))}
+                  <Button
+                    variant="contained"
+                    disabled={
+                      !selectedTemplate
+                      || templateReply.isPending
+                      || templateParameters.some((value) => !value.trim())
+                    }
+                    onClick={() => selectedTemplate && templateReply.mutate({
+                      template: selectedTemplate,
+                      parameters: templateParameters.map((value) => value.trim()),
+                    })}
+                    sx={{ alignSelf: "flex-start" }}
+                  >
+                    Trimite șablonul aprobat
+                  </Button>
+                </>
+              )}
             </Stack>
           )}
         </Stack>

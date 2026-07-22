@@ -38,6 +38,7 @@ class MessageSenderType(StrEnum):
 
 class MessageType(StrEnum):
     TEXT = "text"
+    TEMPLATE = "template"
     INTERACTIVE = "interactive"
     UNSUPPORTED = "unsupported"
     SYSTEM = "system"
@@ -87,4 +88,3 @@ def database_enum(enum_class: type[StrEnum], name: str) -> Enum:
         values_callable=lambda members: [member.value for member in members],
         validate_strings=True,
     )
-

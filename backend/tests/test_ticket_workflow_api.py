@@ -15,9 +15,17 @@ pytest.importorskip("pgvector")
 from app.api.dependencies import get_database_session
 from app.db.models.audit import AuditEvent
 from app.db.models.auth import OperatorAccount, OperatorProjectMembership
-from app.db.models.conversation import OperatorNotification, Ticket, WhatsAppMessage
-from app.db.models.enums import DeliveryStatus, OperatorRole, OutboxStatus, TicketStatus
+from app.db.models.conversation import Conversation, OperatorNotification, Ticket, WhatsAppMessage
+from app.db.models.enums import (
+    DeliveryStatus,
+    MessageType,
+    OperatorRole,
+    OutboxStatus,
+    TemplateStatus,
+    TicketStatus,
+)
 from app.db.models.outbox import OutboxEntry
+from app.db.models.whatsapp import WhatsAppTemplate
 from app.db.session import create_database_engine
 from app.main import create_app
 from app.integrations.whatsapp.mock import MockWhatsAppClient
@@ -636,5 +644,139 @@ def test_manual_reassignment_is_admin_only_and_audited() -> None:
                 )
                 assert event is not None
                 assert event.project_id == "ONCODIR"
+
+    asyncio.run(scenario())
+
+
+def test_worker_terminally_blocks_freeform_message_if_window_closes_after_queueing() -> None:
+    async def scenario() -> None:
+        async with ticket_test_context() as (operator_client, _unused, connection):
+            operator, _membership = await create_account(
+                connection,
+                email="phase6-worker-window@example.invalid",
+            )
+            ticket = await seed_ticket(connection, whatsapp_user_id="phase6-worker-window-user")
+            csrf = await login(operator_client, operator.email)
+            base = f"/api/v1/projects/ONCODIR/tickets/{ticket.id}"
+            assert (
+                await operator_client.post(f"{base}/claim", headers=mutation_headers(csrf))
+            ).status_code == 200
+            reply = await operator_client.post(
+                f"{base}/reply",
+                json={"text": "Răspuns sintetic întârziat."},
+                headers=mutation_headers(csrf),
+            )
+            assert reply.status_code == 201
+            message_id = reply.json()["message_id"]
+            session_factory = async_sessionmaker(
+                bind=connection,
+                expire_on_commit=False,
+                join_transaction_mode="create_savepoint",
+            )
+            async with session_factory.begin() as database:
+                conversation = await database.get(Conversation, ticket.conversation_id)
+                entry = await database.scalar(
+                    select(OutboxEntry).where(OutboxEntry.message_id == message_id)
+                )
+                assert conversation is not None and entry is not None
+                conversation.last_inbound_at = datetime.now(UTC) - timedelta(hours=25)
+                entry.available_at = datetime(2000, 1, 1, tzinfo=UTC)
+
+            processor = OutboxProcessor(
+                session_factory,
+                MockWhatsAppClient(),
+                worker_id="synthetic-window-worker",
+                claim_seconds=60,
+                maximum_attempts=5,
+            )
+            assert await processor.process_next() is True
+            async with session_factory() as database:
+                entry = await database.scalar(
+                    select(OutboxEntry).where(OutboxEntry.message_id == message_id)
+                )
+                message = await database.get(WhatsAppMessage, message_id)
+                assert entry is not None and message is not None
+                assert entry.status == OutboxStatus.FAILED
+                assert entry.attempt_count == 1
+                assert entry.terminal_error_code == "customer_service_window_closed"
+                assert message.delivery_status == DeliveryStatus.FAILED
+
+    asyncio.run(scenario())
+
+
+def test_approved_template_can_be_queued_and_sent_outside_service_window() -> None:
+    async def scenario() -> None:
+        async with ticket_test_context() as (operator_client, _unused, connection):
+            operator, _membership = await create_account(
+                connection,
+                email="phase6-template@example.invalid",
+            )
+            ticket = await seed_ticket(connection, whatsapp_user_id="phase6-template-user")
+            async with AsyncSession(
+                bind=connection,
+                expire_on_commit=False,
+                join_transaction_mode="create_savepoint",
+            ) as database:
+                conversation = await database.get(Conversation, ticket.conversation_id)
+                assert conversation is not None
+                conversation.last_inbound_at = datetime.now(UTC) - timedelta(hours=25)
+                database.add(
+                    WhatsAppTemplate(
+                        project_id="ONCODIR",
+                        template_name="synthetic_follow_up",
+                        language_code="ro",
+                        purpose="Test sintetic",
+                        status=TemplateStatus.APPROVED,
+                        approved_body_snapshot="Mesaj aprobat sintetic.",
+                        variables_schema={"body_parameter_count": 0},
+                    )
+                )
+                await database.commit()
+
+            csrf = await login(operator_client, operator.email)
+            base = f"/api/v1/projects/ONCODIR/tickets/{ticket.id}"
+            assert (
+                await operator_client.post(f"{base}/claim", headers=mutation_headers(csrf))
+            ).status_code == 200
+            templates = await operator_client.get("/api/v1/projects/ONCODIR/tickets/templates")
+            assert templates.status_code == 200
+            assert templates.json()[0]["template_name"] == "synthetic_follow_up"
+            reply = await operator_client.post(
+                f"{base}/reply-template",
+                json={
+                    "template_name": "synthetic_follow_up",
+                    "language_code": "ro",
+                    "body_parameters": [],
+                },
+                headers=mutation_headers(csrf),
+            )
+            assert reply.status_code == 201
+            assert reply.json()["message_type"] == MessageType.TEMPLATE
+            message_id = reply.json()["message_id"]
+            session_factory = async_sessionmaker(
+                bind=connection,
+                expire_on_commit=False,
+                join_transaction_mode="create_savepoint",
+            )
+            async with session_factory.begin() as database:
+                entry = await database.scalar(
+                    select(OutboxEntry).where(OutboxEntry.message_id == message_id)
+                )
+                assert entry is not None
+                assert entry.payload["kind"] == "template"
+                entry.available_at = datetime(2000, 1, 1, tzinfo=UTC)
+
+            processor = OutboxProcessor(
+                session_factory,
+                MockWhatsAppClient(),
+                worker_id="synthetic-template-worker",
+                claim_seconds=60,
+                maximum_attempts=5,
+            )
+            assert await processor.process_next() is True
+            async with session_factory() as database:
+                message = await database.get(WhatsAppMessage, message_id)
+                assert message is not None
+                assert message.delivery_status == DeliveryStatus.SENT
 
     asyncio.run(scenario())

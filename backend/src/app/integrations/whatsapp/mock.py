@@ -1,6 +1,6 @@
 from hashlib import sha256
 
-from app.integrations.whatsapp.base import OutboundText, SendResult
+from app.integrations.whatsapp.base import OutboundTemplate, OutboundText, SendResult
 
 
 class MockWhatsAppClient:
@@ -15,3 +15,14 @@ class MockWhatsAppClient:
             accepted=True,
         )
 
+    async def send_template(self, message: OutboundTemplate) -> SendResult:
+        fingerprint = sha256(
+            f"{message.project_id}:{message.client_reference}:template".encode()
+        ).hexdigest()[:24]
+        return SendResult(
+            provider_message_id=f"mock-{fingerprint}",
+            accepted=True,
+        )
+
+    async def aclose(self) -> None:
+        return None

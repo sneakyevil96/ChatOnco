@@ -25,6 +25,8 @@ from app.api.schemas.tickets import (
     TicketQueue,
     TicketReassignRequest,
     TicketReplyRequest,
+    TicketTemplateReplyRequest,
+    WhatsAppTemplateResponse,
 )
 from app.core.project_config import ProjectId
 from app.db.models.auth import OperatorAccount, OperatorProjectMembership
@@ -44,8 +46,10 @@ from app.db.models.enums import (
     NotificationType,
     OperatorRole,
     TicketStatus,
+    TemplateStatus,
 )
 from app.db.models.outbox import OutboxEntry
+from app.db.models.whatsapp import WhatsAppTemplate
 from app.services.audit import record_audit_event
 from app.services.ticket_workflow import (
     ACTIVE_TICKET_STATUSES,
@@ -56,6 +60,35 @@ from app.services.ticket_workflow import (
 )
 
 router = APIRouter()
+
+
+@router.get("/templates", response_model=list[WhatsAppTemplateResponse])
+async def list_approved_templates(
+    project_id: str,
+    _context: ProjectMembershipContext = Depends(require_project_membership),
+    database: AsyncSession = Depends(get_database_session),
+) -> list[WhatsAppTemplateResponse]:
+    templates = (
+        await database.scalars(
+            select(WhatsAppTemplate)
+            .where(
+                WhatsAppTemplate.project_id == project_id,
+                WhatsAppTemplate.status == TemplateStatus.APPROVED,
+                WhatsAppTemplate.retired_at.is_(None),
+            )
+            .order_by(WhatsAppTemplate.template_name, WhatsAppTemplate.language_code)
+        )
+    ).all()
+    return [
+        WhatsAppTemplateResponse(
+            template_name=template.template_name,
+            language_code=template.language_code,
+            purpose=template.purpose,
+            approved_body_snapshot=template.approved_body_snapshot or "",
+            body_parameter_count=int((template.variables_schema or {}).get("body_parameter_count", 0)),
+        )
+        for template in templates
+    ]
 
 
 def require_same_csrf_context(
@@ -732,6 +765,110 @@ async def reply_to_ticket(
     conversation.state = ConversationState.HUMAN_ACTIVE
     touch_ticket(ticket, now)
     await audit_ticket_action(database, context, ticket, "ticket.operator_reply_queued")
+    await database.commit()
+    return TicketMessageResponse(
+        message_id=message.id,
+        ticket_id=message.ticket_id,
+        direction=message.direction,
+        sender_type=message.sender_type,
+        message_type=message.message_type,
+        text_content=message.text_content,
+        attachment_metadata=message.attachment_metadata,
+        delivery_status=message.delivery_status,
+        operator_membership_id=message.operator_membership_id,
+        created_at=message.created_at,
+        provider_timestamp=message.provider_timestamp,
+        sent_at=message.sent_at,
+        delivered_at=message.delivered_at,
+        read_at=message.read_at,
+        failed_at=message.failed_at,
+        error_code=message.error_code,
+        error_summary=message.error_summary,
+    )
+
+
+@router.post(
+    "/{ticket_id}/reply-template",
+    response_model=TicketMessageResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def reply_to_ticket_with_template(
+    project_id: str,
+    ticket_id: UUID,
+    payload: TicketTemplateReplyRequest,
+    context: ProjectMembershipContext = Depends(require_project_membership),
+    csrf_auth: AuthContext = Depends(require_authenticated_csrf),
+    database: AsyncSession = Depends(get_database_session),
+) -> TicketMessageResponse:
+    require_same_csrf_context(context, csrf_auth)
+    ticket, conversation = await load_ticket_and_conversation(
+        database, project_id, ticket_id, for_update=True
+    )
+    if ticket.status not in ACTIVE_TICKET_STATUSES:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Tichetul nu este activ")
+    ensure_can_manage(ticket, context)
+    template = await database.scalar(
+        select(WhatsAppTemplate).where(
+            WhatsAppTemplate.project_id == project_id,
+            WhatsAppTemplate.template_name == payload.template_name,
+            WhatsAppTemplate.language_code == payload.language_code,
+            WhatsAppTemplate.status == TemplateStatus.APPROVED,
+            WhatsAppTemplate.retired_at.is_(None),
+        )
+    )
+    if template is None or not template.approved_body_snapshot:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Șablon aprobat indisponibil")
+    expected_parameters = int((template.variables_schema or {}).get("body_parameter_count", 0))
+    if len(payload.body_parameters) != expected_parameters:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Numărul parametrilor șablonului nu este valid",
+        )
+    now = datetime.now(UTC)
+    if ticket.assigned_membership_id is None:
+        ticket.assigned_membership_id = context.membership.id
+        ticket.claimed_at = now
+    client_reference = f"operator-template-{uuid4()}"
+    message = WhatsAppMessage(
+        project_id=project_id,
+        conversation_id=conversation.id,
+        ticket_id=ticket.id,
+        operator_membership_id=context.membership.id,
+        client_reference=client_reference,
+        direction=MessageDirection.OUTBOUND,
+        sender_type=MessageSenderType.OPERATOR,
+        message_type=MessageType.TEMPLATE,
+        text_content=template.approved_body_snapshot,
+        attachment_metadata={
+            "template_name": template.template_name,
+            "language_code": template.language_code,
+        },
+        delivery_status=DeliveryStatus.QUEUED,
+    )
+    database.add(message)
+    await database.flush()
+    database.add(
+        OutboxEntry(
+            project_id=project_id,
+            message_id=message.id,
+            template_id=template.id,
+            idempotency_key=client_reference,
+            payload={
+                "kind": "template",
+                "project_id": project_id,
+                "recipient": conversation.whatsapp_user_id,
+                "template_name": template.template_name,
+                "language_code": template.language_code,
+                "body_parameters": payload.body_parameters,
+                "client_reference": client_reference,
+            },
+        )
+    )
+    ticket.status = TicketStatus.CLAIMED
+    ticket.waiting_user_at = None
+    conversation.state = ConversationState.HUMAN_ACTIVE
+    touch_ticket(ticket, now)
+    await audit_ticket_action(database, context, ticket, "ticket.operator_template_reply_queued")
     await database.commit()
     return TicketMessageResponse(
         message_id=message.id,

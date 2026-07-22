@@ -1,6 +1,7 @@
 import json
 from enum import StrEnum
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -37,20 +38,51 @@ class RetentionConfig(BaseModel):
     resolved_ticket_reopen_days: int = Field(default=7, ge=0)
 
 
+class WhatsAppTemplateConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, max_length=512)
+    language_code: str = Field(default="ro", min_length=2, max_length=16)
+    purpose: str = Field(min_length=1, max_length=160)
+    status: Literal["draft", "submitted", "approved", "rejected", "paused"] = "draft"
+    approved_body_snapshot: str | None = None
+    body_parameter_count: int = Field(default=0, ge=0, le=20)
+
+    @model_validator(mode="after")
+    def require_snapshot_for_approved_template(self) -> "WhatsAppTemplateConfig":
+        if self.status == "approved" and not self.approved_body_snapshot:
+            raise ValueError("Approved WhatsApp templates require an approved body snapshot")
+        return self
+
+
 class WhatsAppConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool = False
     phone_number_id: str | None = None
     credential_binding: str | None = None
-    templates: list[str] = Field(default_factory=list)
+    webhook_binding: str | None = None
+    unsupported_warning_cooldown_minutes: int = Field(default=10, ge=1, le=1440)
+    interactive_actions: dict[str, str] = Field(default_factory=dict)
+    templates: list[WhatsAppTemplateConfig] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def require_bindings_when_enabled(self) -> "WhatsAppConfig":
-        if self.enabled and (not self.phone_number_id or not self.credential_binding):
+        if self.enabled and (
+            not self.phone_number_id
+            or not self.credential_binding
+            or not self.webhook_binding
+        ):
             raise ValueError(
-                "Enabled WhatsApp configuration requires a phone number ID and credential binding"
+                "Enabled WhatsApp configuration requires phone, credential, and webhook bindings"
             )
+        template_keys = [
+            (template.name, template.language_code) for template in self.templates
+        ]
+        if len(template_keys) != len(set(template_keys)):
+            raise ValueError("WhatsApp template names and languages must be unique per project")
+        if any(not action_id.strip() or not text.strip() for action_id, text in self.interactive_actions.items()):
+            raise ValueError("WhatsApp interactive action IDs and mapped text must not be empty")
         return self
 
 
@@ -119,3 +151,14 @@ class ProjectCatalog:
 
     def all(self) -> tuple[ProjectConfig, ...]:
         return tuple(self._projects[project_id] for project_id in ProjectId)
+
+    def by_phone_number_id(self, phone_number_id: str) -> ProjectConfig | None:
+        matches = [
+            project
+            for project in self.all()
+            if project.whatsapp.enabled
+            and project.whatsapp.phone_number_id == phone_number_id
+        ]
+        if len(matches) > 1:
+            raise RuntimeError("A WhatsApp phone-number ID is bound to multiple projects")
+        return matches[0] if matches else None

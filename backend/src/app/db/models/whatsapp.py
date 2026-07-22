@@ -18,6 +18,29 @@ from app.db.models.enums import TemplateStatus, database_enum
 from app.db.models.mixins import ProjectOwnedMixin, TimestampMixin, UuidPrimaryKeyMixin
 
 
+class WhatsAppWebhookEvent(
+    UuidPrimaryKeyMixin,
+    ProjectOwnedMixin,
+    TimestampMixin,
+    Base,
+):
+    """Minimal durable webhook ledger; raw webhook bodies are never retained."""
+
+    __tablename__ = "whatsapp_webhook_events"
+    __table_args__ = (
+        UniqueConstraint("project_id", "id"),
+        UniqueConstraint("project_id", "event_key"),
+    )
+
+    event_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    phone_number_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    provider_message_id: Mapped[str | None] = mapped_column(String(256), index=True)
+    provider_timestamp: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    event_metadata: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class ProjectWhatsAppConfiguration(
     UuidPrimaryKeyMixin,
     ProjectOwnedMixin,
@@ -64,4 +87,3 @@ class WhatsAppTemplate(
     approved_body_snapshot: Mapped[str | None] = mapped_column(Text)
     variables_schema: Mapped[dict | None] = mapped_column(JSONB)
     retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-

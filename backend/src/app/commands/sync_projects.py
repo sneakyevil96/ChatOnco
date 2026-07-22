@@ -1,4 +1,5 @@
 import asyncio
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
@@ -6,7 +7,8 @@ from sqlalchemy.dialects.postgresql import insert
 from app.core.project_config import ProjectCatalog, ProjectConfig
 from app.core.settings import get_settings
 from app.db.models.project import Project, RetentionPolicy
-from app.db.models.whatsapp import ProjectWhatsAppConfiguration
+from app.db.models.enums import TemplateStatus
+from app.db.models.whatsapp import ProjectWhatsAppConfiguration, WhatsAppTemplate
 from app.db.session import create_database_engine, create_session_factory
 
 
@@ -56,6 +58,7 @@ async def synchronize_projects() -> None:
                     is_enabled=whatsapp.enabled,
                     phone_number_id=whatsapp.phone_number_id,
                     credential_binding=whatsapp.credential_binding,
+                    webhook_binding=whatsapp.webhook_binding,
                 )
                 whatsapp_statement = whatsapp_statement.on_conflict_do_update(
                     index_elements=[ProjectWhatsAppConfiguration.project_id],
@@ -63,10 +66,60 @@ async def synchronize_projects() -> None:
                         "is_enabled": whatsapp.enabled,
                         "phone_number_id": whatsapp.phone_number_id,
                         "credential_binding": whatsapp.credential_binding,
+                        "webhook_binding": whatsapp.webhook_binding,
                         "updated_at": func.now(),
                     },
                 )
                 await session.execute(whatsapp_statement)
+
+                for configured_template in whatsapp.templates:
+                    template_statement = insert(WhatsAppTemplate).values(
+                        project_id=project_id,
+                        template_name=configured_template.name,
+                        language_code=configured_template.language_code,
+                        purpose=configured_template.purpose,
+                        status=TemplateStatus(configured_template.status),
+                        approved_body_snapshot=configured_template.approved_body_snapshot,
+                        variables_schema={
+                            "body_parameter_count": configured_template.body_parameter_count
+                        },
+                    )
+                    template_statement = template_statement.on_conflict_do_update(
+                        index_elements=[
+                            WhatsAppTemplate.project_id,
+                            WhatsAppTemplate.template_name,
+                            WhatsAppTemplate.language_code,
+                        ],
+                        set_={
+                            "purpose": configured_template.purpose,
+                            "status": TemplateStatus(configured_template.status),
+                            "approved_body_snapshot": configured_template.approved_body_snapshot,
+                            "variables_schema": {
+                                "body_parameter_count": configured_template.body_parameter_count
+                            },
+                            "retired_at": None,
+                            "updated_at": func.now(),
+                        },
+                    )
+                    await session.execute(template_statement)
+
+                configured_template_keys = {
+                    (template.name, template.language_code)
+                    for template in whatsapp.templates
+                }
+                stored_templates = (
+                    await session.scalars(
+                        select(WhatsAppTemplate).where(
+                            WhatsAppTemplate.project_id == project_id,
+                            WhatsAppTemplate.retired_at.is_(None),
+                        )
+                    )
+                ).all()
+                for stored_template in stored_templates:
+                    key = (stored_template.template_name, stored_template.language_code)
+                    if key not in configured_template_keys:
+                        stored_template.status = TemplateStatus.PAUSED
+                        stored_template.retired_at = datetime.now(UTC)
 
                 configured_retention = retention_values(configured_project)
                 current = await session.scalar(
@@ -118,4 +171,3 @@ async def synchronize_projects() -> None:
 
 if __name__ == "__main__":
     asyncio.run(synchronize_projects())
-

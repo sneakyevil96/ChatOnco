@@ -9,13 +9,13 @@ They share one implementation but keep separate project configuration, operator 
 
 ## Current status
 
-Phases 1–5 provide the local platform, project-isolated data foundation, operator authentication, human-support workflow, and deterministic FAQ pipeline:
+Phases 1–6 provide the local platform, project-isolated data foundation, operator authentication, human-support workflow, deterministic FAQ pipeline, and configurable Meta WhatsApp adapter:
 
 - FastAPI application with liveness and database-readiness endpoints;
 - validated project configuration for ONCODIR and ONCOSCREEN;
 - PostgreSQL with pgvector through Docker Compose;
 - Alembic migration foundation;
-- a mock-only WhatsApp client boundary;
+- a network-free mock WhatsApp provider used by default in local development;
 - React, TypeScript, Vite, React Router, TanStack Query, and Material UI foundation;
 - Caddy as the local single entry point;
 - backend and frontend test foundations;
@@ -39,8 +39,17 @@ Phases 1–5 provide the local platform, project-isolated data foundation, opera
 - Romanian exact normalization plus optional local pgvector semantic retrieval;
 - labelled evaluation tooling requiring `FAQ@version` or `ESCALATE` outcomes;
 - provider-independent inbound orchestration that returns only stored answers or creates a ticket.
+- public Meta webhook verification with raw-body HMAC-SHA256 authenticity validation;
+- authoritative project resolution from the receiving Meta phone-number ID;
+- durable webhook deduplication without retaining raw webhook bodies;
+- inbound text and configured interactive-reply handling plus metadata-only unsupported-media escalation;
+- first-interaction, inactivity, attachment, and deterministic sensitive-content privacy warnings;
+- a real Meta Cloud API sender for free-form text and approved templates;
+- worker-side 24-hour customer-service-window enforcement and terminal/non-terminal error handling;
+- monotonic sent, delivered, read, and failed status processing, including out-of-order reconciliation;
+- approved-template listing and sending in the operator panel when the free-form window is closed.
 
-The current foundation does **not** contain real Meta integration, real FAQ content, MFA, or production deployment configuration. Operator replies are persisted to the PostgreSQL outbox but are not sent to Meta yet.
+The Meta integration is implemented but intentionally disabled. The repository contains no real phone-number ID, Meta token, app secret, verification token, approved template, or public webhook address. The current foundation also does **not** contain real FAQ content, MFA, or production deployment configuration.
 
 ## Local prerequisites
 
@@ -59,6 +68,8 @@ Useful endpoints:
 - `GET /api/v1/health/live`
 - `GET /api/v1/health/ready`
 - `GET /api/v1/projects`
+- `GET /webhooks/whatsapp` (Meta subscription verification when configured)
+- `POST /webhooks/whatsapp` (signed Meta webhook deliveries when configured)
 
 The local database is not published to the host. Caddy is the only service with a host port.
 
@@ -108,6 +119,24 @@ Evaluation labels use `logical_key@version` or `ESCALATE`. Candidate thresholds 
 `docker compose exec backend python -m app.commands.evaluate_faqs --project ONCODIR --file /approved/evaluation.csv --thresholds <reviewed-score-candidates> --score-gaps <reviewed-gap-candidates>`
 
 No numeric defaults are recommended. Only values meeting the reviewed precision and high-risk criteria may be copied into project configuration. Expiry processing and emergency withdrawal are available through `app.commands.expire_faqs` and `app.commands.retire_faq`.
+
+## Meta WhatsApp configuration
+
+Local development continues to use `WHATSAPP_PROVIDER=mock`; it performs no network requests. Phase 6 can therefore be exercised before either project has a server or phone number.
+
+Enabling a project later requires its authoritative Meta phone-number ID plus separate opaque credential and webhook binding names in the project JSON. The bindings resolve through a deployment-injected JSON secret file outside Git. Credential bindings contain access tokens; webhook bindings contain app secrets and verification tokens. Two projects may point to the same webhook binding when they share a Meta application, but the implementation does not assume that they do.
+
+For a real Meta connection, deployment configuration must set:
+
+- `WHATSAPP_PROVIDER=meta`;
+- `WHATSAPP_SECRET_FILE` to a root-owned or Docker-secret-mounted JSON file;
+- `META_GRAPH_API_VERSION` to the explicitly reviewed Meta Graph API version;
+- the project-specific phone IDs and opaque bindings;
+- separately approved project templates where messages may be sent outside the 24-hour window.
+
+The webhook never downloads unsupported media and does not retain the raw webhook body. It stores only message/status IDs, timestamps, event type, and the minimum attachment or delivery-error metadata needed for deduplication, audit continuity, and operator handling. Invalid signatures, unknown receiving phone IDs, and oversized payloads are rejected before business processing.
+
+Free-form text is checked against the 24-hour window both when an operator queues a reply and again when the outbox worker attempts delivery. Outside the window, only a configured, currently approved project template can be queued. No template is included in the repository yet.
 
 Frontend commands are run from `frontend/`:
 

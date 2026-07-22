@@ -18,6 +18,9 @@ def test_catalog_loads_both_projects_with_whatsapp_disabled() -> None:
         ProjectId.ONCOSCREEN,
     ]
     assert all(not project.whatsapp.enabled for project in catalog.all())
+    assert all(project.whatsapp.phone_number_id is None for project in catalog.all())
+    assert all(project.whatsapp.webhook_binding is None for project in catalog.all())
+    assert all(project.whatsapp.templates == [] for project in catalog.all())
     assert all(not project.faq_retrieval.semantic_enabled for project in catalog.all())
     assert all(project.faq_retrieval.semantic_threshold is None for project in catalog.all())
     assert all(project.faq_retrieval.minimum_score_gap is None for project in catalog.all())

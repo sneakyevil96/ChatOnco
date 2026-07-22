@@ -27,7 +27,7 @@ export interface TicketMessage {
   ticket_id: string | null;
   direction: "inbound" | "outbound";
   sender_type: "user" | "bot" | "operator" | "system";
-  message_type: "text" | "interactive" | "unsupported" | "system";
+  message_type: "text" | "template" | "interactive" | "unsupported" | "system";
   text_content: string | null;
   attachment_metadata: Record<string, unknown> | null;
   delivery_status: DeliveryStatus;
@@ -68,6 +68,14 @@ export interface OperatorNotification {
   notification_type: "user_replied" | "ticket_reopened" | "ticket_assigned";
   created_at: string;
   read_at: string | null;
+}
+
+export interface WhatsAppTemplate {
+  template_name: string;
+  language_code: string;
+  purpose: string;
+  approved_body_snapshot: string;
+  body_parameter_count: number;
 }
 
 export function getTickets(projectId: string, queue: TicketQueue): Promise<TicketListItem[]> {
@@ -123,6 +131,26 @@ export function replyToTicket(projectId: string, ticketId: string, text: string)
   return apiRequest(`/api/v1/projects/${projectId}/tickets/${ticketId}/reply`, {
     method: "POST",
     body: JSON.stringify({ text }),
+  });
+}
+
+export function getApprovedTemplates(projectId: string): Promise<WhatsAppTemplate[]> {
+  return apiRequest(`/api/v1/projects/${projectId}/tickets/templates`);
+}
+
+export function replyToTicketWithTemplate(
+  projectId: string,
+  ticketId: string,
+  template: WhatsAppTemplate,
+  bodyParameters: string[],
+): Promise<TicketMessage> {
+  return apiRequest(`/api/v1/projects/${projectId}/tickets/${ticketId}/reply-template`, {
+    method: "POST",
+    body: JSON.stringify({
+      template_name: template.template_name,
+      language_code: template.language_code,
+      body_parameters: bodyParameters,
+    }),
   });
 }
 

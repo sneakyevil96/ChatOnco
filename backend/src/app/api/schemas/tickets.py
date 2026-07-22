@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -88,6 +88,23 @@ class TicketReassignRequest(BaseModel):
 
 class TicketReplyRequest(BaseModel):
     text: str = Field(min_length=1, max_length=4096)
+
+
+class TicketTemplateReplyRequest(BaseModel):
+    template_name: str = Field(min_length=1, max_length=512)
+    language_code: str = Field(min_length=2, max_length=16)
+    body_parameters: list[Annotated[str, Field(min_length=1, max_length=1024)]] = Field(
+        default_factory=list,
+        max_length=20,
+    )
+
+
+class WhatsAppTemplateResponse(BaseModel):
+    template_name: str
+    language_code: str
+    purpose: str
+    approved_body_snapshot: str
+    body_parameter_count: int
 
 
 class InternalNoteCreateRequest(BaseModel):
