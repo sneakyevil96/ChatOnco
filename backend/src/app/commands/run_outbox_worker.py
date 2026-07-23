@@ -4,6 +4,7 @@ import socket
 from uuid import uuid4
 
 from app.core.settings import get_settings
+from app.core.logging import configure_logging
 from app.core.project_config import ProjectCatalog
 from app.db.session import create_database_engine, create_session_factory
 from app.integrations.whatsapp.factory import create_whatsapp_client
@@ -13,7 +14,7 @@ from app.services.outbox_processor import OutboxProcessor
 
 async def run() -> None:
     settings = get_settings()
-    logging.basicConfig(level=settings.log_level)
+    configure_logging(settings.log_level, structured=settings.structured_logging)
     engine = create_database_engine(settings.database_url)
     projects = ProjectCatalog.load(settings.project_config_dir)
     secrets = MetaSecretCatalog.load_optional(settings.whatsapp_secret_file)

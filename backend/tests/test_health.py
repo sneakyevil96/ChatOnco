@@ -19,3 +19,7 @@ def test_liveness_endpoint() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["x-frame-options"] == "DENY"
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["x-request-id"]

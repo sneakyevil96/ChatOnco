@@ -9,6 +9,7 @@ import { SessionHeader } from "./components/SessionHeader";
 import { ChangePasswordPage } from "./pages/ChangePasswordPage";
 import { LoginPage } from "./pages/LoginPage";
 import { OperatorAdminPage } from "./pages/OperatorAdminPage";
+import { OperationsPage } from "./pages/OperationsPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { TicketDetailPage } from "./pages/TicketDetailPage";
 import { TicketListPage } from "./pages/TicketListPage";
@@ -44,7 +45,10 @@ function ProjectFoundation() {
         <Button component={Link} to="/">Proiecte</Button>
         <Button component={Link} variant="contained" to={`/projects/${project.project_id}/tickets`}>Tichete</Button>
         {project.role === "administrator" && (
-          <Button component={Link} to={`/projects/${project.project_id}/admin/operators`}>Administrare operatori</Button>
+          <>
+            <Button component={Link} to={`/projects/${project.project_id}/admin/operators`}>Administrare operatori</Button>
+            <Button component={Link} to={`/projects/${project.project_id}/admin/operations`}>Operațiuni și audit</Button>
+          </>
         )}
       </Stack>
     </Stack>
@@ -65,6 +69,7 @@ export function App() {
             <Route path="/projects/:projectId/tickets" element={<TicketListPage />} />
             <Route path="/projects/:projectId/tickets/:ticketId" element={<TicketDetailPage />} />
             <Route path="/projects/:projectId/admin/operators" element={<OperatorAdminPage />} />
+            <Route path="/projects/:projectId/admin/operations" element={<OperationsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

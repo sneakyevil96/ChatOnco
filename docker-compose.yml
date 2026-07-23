@@ -1,5 +1,11 @@
 name: screening-platform-local
 
+x-default-logging: &default-logging
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "9"
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -15,6 +21,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    logging: *default-logging
 
   backend:
     image: screening-support-backend:local
@@ -37,7 +44,13 @@ services:
         condition: service_healthy
     expose:
       - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
     restart: unless-stopped
+    logging: *default-logging
 
   frontend:
     build:
@@ -51,6 +64,7 @@ services:
     expose:
       - "5173"
     restart: unless-stopped
+    logging: *default-logging
 
   outbox-worker:
     image: screening-support-backend:local
@@ -70,6 +84,7 @@ services:
       backend:
         condition: service_started
     restart: unless-stopped
+    logging: *default-logging
 
   caddy:
     image: caddy:2-alpine
@@ -78,9 +93,12 @@ services:
     ports:
       - "8080:80"
     depends_on:
-      - backend
-      - frontend
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
     restart: unless-stopped
+    logging: *default-logging
 
 volumes:
   postgres_data:

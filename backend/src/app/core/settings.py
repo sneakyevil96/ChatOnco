@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,6 +47,24 @@ class Settings(BaseSettings):
     outbox_poll_seconds: float = 2.0
     outbox_claim_seconds: int = 60
     outbox_max_attempts: int = 5
+    retention_batch_size: int = Field(default=1000, ge=1, le=10_000)
+    security_state_cleanup_days: int = Field(default=30, ge=1)
+    operations_stale_outbox_minutes: int = Field(default=5, ge=1)
+    structured_logging: bool = True
+    api_docs_enabled: bool = True
+    operator_panel_access_mode: Literal[
+        "public",
+        "vpn",
+        "ip_allowlist",
+        "identity_aware_proxy",
+        "reverse_proxy_auth",
+    ] = "public"
+    restricted_panel_mfa_risk_accepted: bool = False
+    https_termination_confirmed: bool = False
+    storage_encryption_confirmed: bool = False
+    backup_encryption_confirmed: bool = False
+    backup_destination_separate_confirmed: bool = False
+    backup_restore_test_confirmed: bool = False
 
     @property
     def cookie_secure(self) -> bool:
@@ -67,6 +85,21 @@ class Settings(BaseSettings):
                 raise ValueError("A deployment-specific CSRF signing key is required")
             if self.security_hash_key.startswith("local-"):
                 raise ValueError("A deployment-specific security hash key is required")
+        if self.app_env == "production":
+            if self.operator_panel_access_mode == "public":
+                raise ValueError(
+                    "Public production panel access is unsupported until application MFA is implemented"
+                )
+            if not self.restricted_panel_mfa_risk_accepted:
+                raise ValueError(
+                    "Restricted production access without MFA requires documented risk acceptance"
+                )
+            if self.api_docs_enabled:
+                raise ValueError("Interactive API documentation must be disabled in production")
+            if any(not origin.startswith("https://") for origin in self.browser_origins):
+                raise ValueError("Production browser origins must use HTTPS")
+            if "local-development-only" in self.database_url:
+                raise ValueError("Production database credentials must not use local defaults")
         if self.whatsapp_provider == "meta":
             if self.whatsapp_secret_file is None:
                 raise ValueError("Meta WhatsApp requires a deployment secret file")

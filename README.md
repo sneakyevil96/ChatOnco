@@ -9,7 +9,7 @@ They share one implementation but keep separate project configuration, operator 
 
 ## Current status
 
-Phases 1–6 provide the local platform, project-isolated data foundation, operator authentication, human-support workflow, deterministic FAQ pipeline, and configurable Meta WhatsApp adapter:
+Phases 1–7 provide the local platform, project-isolated data foundation, operator authentication, human-support workflow, deterministic FAQ pipeline, configurable Meta WhatsApp adapter, and the initial privacy/operations layer:
 
 - FastAPI application with liveness and database-readiness endpoints;
 - validated project configuration for ONCODIR and ONCOSCREEN;
@@ -48,6 +48,11 @@ Phases 1–6 provide the local platform, project-isolated data foundation, opera
 - worker-side 24-hour customer-service-window enforcement and terminal/non-terminal error handling;
 - monotonic sent, delivered, read, and failed status processing, including out-of-order reconciliation;
 - approved-template listing and sending in the operator panel when the free-form window is closed.
+- configurable message redaction and record-retention cleanup with dry-run support;
+- cleanup of expired authentication state and aggregate retention audit events;
+- administrator-only operations metrics and audit-event visibility;
+- privacy-minimizing structured request/worker logging and API security headers;
+- production configuration validation and team-owned operational runbooks.
 
 The Meta integration is implemented but intentionally disabled. The repository contains no real phone-number ID, Meta token, app secret, verification token, approved template, or public webhook address. The current foundation also does **not** contain real FAQ content, MFA, or production deployment configuration.
 
@@ -152,3 +157,33 @@ Files under `backend/tests/fixtures/` are synthetic and must never be imported i
 ## Secrets
 
 Production secrets must be injected at deployment time using Docker secrets where practical or root-owned files outside this repository. Never place Meta tokens, app secrets, database credentials, session keys, or backup keys in Git, frontend variables, images, or documentation.
+
+## Operations and data lifecycle
+
+The production retention values remain provisional until reviewed by the
+project owners. Preview the configured cleanup without modifying data:
+
+`docker compose exec backend python -m app.commands.run_retention`
+
+Applying retention requires the explicit `--apply` flag. Configure its
+production schedule only after reviewing the preview and confirming a current
+encrypted backup. Pending outbound delivery payloads are preserved until they
+reach a terminal state, while expired message content is removed from the
+conversation record.
+
+Administrators can inspect content-free delivery/retention metrics and
+project-scoped audit events through **Operațiuni și audit**. Infrastructure
+backup, certificate, disk, and host monitoring remains an operational
+responsibility rather than an in-application substitute.
+
+Phase 7 runbooks:
+
+- [operations](infrastructure/runbooks/operations.md);
+- [backup and restore](infrastructure/runbooks/backup-restore.md);
+- [incident response](infrastructure/runbooks/incident-response.md);
+- [production readiness](infrastructure/runbooks/production-readiness.md).
+
+The backup technology and remote destination cannot be selected until the
+server/storage environment exists. Production nevertheless requires tested
+daily full/base backups plus continuous WAL or equivalent incremental capture;
+a daily logical dump alone does not satisfy the provisional one-hour RPO.
