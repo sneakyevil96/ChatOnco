@@ -131,7 +131,7 @@ export function OperationsPage() {
       <Paper sx={{ p: 3 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>Evenimente de audit ({audit.data.total})</Typography>
         <TableContainer>
-          <Table size="small">
+          <Table size="small" aria-label="Evenimente de audit">
             <TableHead>
               <TableRow>
                 <TableCell>Dată</TableCell>

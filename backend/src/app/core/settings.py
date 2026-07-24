@@ -1,6 +1,7 @@
+import json
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -19,6 +20,7 @@ class Settings(BaseSettings):
 
     app_env: Literal["local", "test", "staging", "production"] = "local"
     log_level: str = "INFO"
+    application_secret_file: Path | None = None
     database_url: str = (
         "postgresql+psycopg://screening_local:local-development-only@localhost:5432/"
         "screening_platform"
@@ -65,6 +67,29 @@ class Settings(BaseSettings):
     backup_encryption_confirmed: bool = False
     backup_destination_separate_confirmed: bool = False
     backup_restore_test_confirmed: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def load_application_secrets(cls, raw_values: Any) -> Any:
+        if not isinstance(raw_values, dict):
+            return raw_values
+        values = dict(raw_values)
+        secret_file = values.get("application_secret_file")
+        if not secret_file:
+            return values
+        try:
+            payload = json.loads(Path(secret_file).read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError) as exc:
+            raise ValueError("Application secret file is unavailable or invalid") from exc
+        allowed = {"database_url", "csrf_signing_key", "security_hash_key"}
+        if not isinstance(payload, dict) or set(payload) != allowed:
+            raise ValueError(
+                "Application secret file must contain exactly the required secret bindings"
+            )
+        if any(not isinstance(payload[key], str) or not payload[key] for key in allowed):
+            raise ValueError("Application secret file contains an invalid secret binding")
+        values.update(payload)
+        return values
 
     @property
     def cookie_secure(self) -> bool:

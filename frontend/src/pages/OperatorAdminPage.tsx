@@ -82,7 +82,12 @@ export function OperatorAdminPage() {
   return (
     <Stack spacing={3} sx={{ width: "100%" }}>
       <SessionHeader />
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        justifyContent="space-between"
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        spacing={2}
+      >
         <Typography variant="h4" component="h1">Administrare operatori — {membership.project_name}</Typography>
         <Button component={Link} to={`/projects/${projectId}`}>Înapoi</Button>
       </Stack>
@@ -107,7 +112,7 @@ export function OperatorAdminPage() {
       </Paper>
       {operators.isError && <Alert severity="error">Lista operatorilor nu poate fi încărcată.</Alert>}
       <Paper sx={{ overflowX: "auto" }}>
-        <Table>
+        <Table aria-label="Lista operatorilor">
           <TableHead><TableRow><TableCell>E-mail</TableCell><TableCell>Rol</TableCell><TableCell>Stare</TableCell><TableCell>Acțiuni</TableCell></TableRow></TableHead>
           <TableBody>
             {operators.data?.map((operator) => (

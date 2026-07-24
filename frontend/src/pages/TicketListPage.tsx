@@ -139,7 +139,7 @@ export function TicketListPage() {
       )}
       {tickets.data && tickets.data.length > 0 && (
         <Paper sx={{ overflowX: "auto" }}>
-          <Table>
+          <Table aria-label="Lista tichetelor">
             <TableHead>
               <TableRow>
                 <TableCell>Referință</TableCell>

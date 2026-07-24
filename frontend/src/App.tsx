@@ -58,7 +58,10 @@ function ProjectFoundation() {
 export function App() {
   return (
     <Container maxWidth="lg">
-      <Box component="main" className="app-shell">
+      <Box component="a" href="#main-content" className="skip-link">
+        Sari la conținutul principal
+      </Box>
+      <Box component="main" id="main-content" tabIndex={-1} className="app-shell">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />

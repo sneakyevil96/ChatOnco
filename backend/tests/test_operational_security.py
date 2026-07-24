@@ -1,5 +1,6 @@
 import json
 import logging
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -57,3 +58,41 @@ def test_privacy_safe_formatter_ignores_unapproved_extra_fields_and_exception_te
     assert payload["exception_type"] == "RuntimeError"
     assert "sensitive synthetic body" not in json.dumps(payload)
     assert "message_content" not in payload
+
+
+def test_application_secrets_can_be_loaded_from_a_deployment_owned_file(
+    tmp_path: Path,
+) -> None:
+    secret_file = tmp_path / "application.json"
+    secret_file.write_text(
+        json.dumps(
+            {
+                "database_url": "postgresql+psycopg://service:file-secret@postgres/screening",
+                "csrf_signing_key": "file-specific-csrf-key",
+                "security_hash_key": "file-specific-security-key",
+            }
+        ),
+        encoding="utf-8",
+    )
+    settings = Settings(application_secret_file=secret_file)
+    assert settings.database_url.endswith("@postgres/screening")
+    assert settings.csrf_signing_key == "file-specific-csrf-key"
+    assert settings.security_hash_key == "file-specific-security-key"
+
+
+def test_application_secret_file_rejects_missing_or_extra_bindings(
+    tmp_path: Path,
+) -> None:
+    secret_file = tmp_path / "invalid.json"
+    secret_file.write_text(
+        json.dumps(
+            {
+                "database_url": "synthetic",
+                "csrf_signing_key": "synthetic",
+                "unexpected": "must-not-be-accepted",
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValidationError, match="exactly"):
+        Settings(application_secret_file=secret_file)

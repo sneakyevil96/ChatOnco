@@ -1,0 +1,20 @@
+{
+  "environment": "production",
+  "participant_data_allowed": true,
+  "public_origin": "https://support.example.invalid",
+  "database_identity": "production-postgres/screening-production",
+  "project_configuration_identity": "production-project-config",
+  "csrf_secret_identity": "production-csrf-key",
+  "security_hash_secret_identity": "production-security-hash-key",
+  "backup_key_identity": "production-backup-key",
+  "backup_destination_identity": "off-host-backups/production",
+  "storage_volume_identity": "production-postgres-volume",
+  "meta_credential_identities": [
+    "production-oncodir-meta-credentials",
+    "production-oncoscreen-meta-credentials"
+  ],
+  "meta_phone_number_identities": [
+    "production-oncodir-number",
+    "production-oncoscreen-number"
+  ]
+}

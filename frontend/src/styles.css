@@ -8,6 +8,23 @@ body {
   margin: 0;
 }
 
+.skip-link {
+  position: fixed;
+  inset-block-start: 0.5rem;
+  inset-inline-start: 0.5rem;
+  z-index: 2000;
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  background: #ffffff;
+  color: #123f58;
+  font-weight: 700;
+  transform: translateY(-150%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
 .app-shell {
   min-height: 100vh;
   display: flex;
@@ -15,4 +32,3 @@ body {
   justify-content: center;
   padding-block: 3rem;
 }
-

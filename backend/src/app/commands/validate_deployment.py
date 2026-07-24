@@ -29,12 +29,20 @@ def validate() -> tuple[list[str], list[str]]:
             errors.append(f"{project.project_id.value} WhatsApp integration is disabled")
     if settings.whatsapp_provider != "meta":
         errors.append("WHATSAPP_PROVIDER must be meta for production participant messaging")
-    if settings.whatsapp_secret_file is not None and settings.whatsapp_secret_file.is_file():
-        if os.name != "nt":
-            mode = stat.S_IMODE(settings.whatsapp_secret_file.stat().st_mode)
+    for label, secret_file in (
+        ("Application", settings.application_secret_file),
+        ("WhatsApp", settings.whatsapp_secret_file),
+    ):
+        if secret_file is not None and secret_file.is_file() and os.name != "nt":
+            mode = stat.S_IMODE(secret_file.stat().st_mode)
             if mode & 0o077:
-                errors.append("WhatsApp secret file permissions allow group or other access")
-    elif settings.whatsapp_provider == "meta":
+                errors.append(
+                    f"{label} secret file permissions allow group or other access"
+                )
+    if settings.whatsapp_provider == "meta" and (
+        settings.whatsapp_secret_file is None
+        or not settings.whatsapp_secret_file.is_file()
+    ):
         errors.append("WhatsApp secret file is unavailable")
     return errors, warnings
 

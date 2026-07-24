@@ -1,0 +1,95 @@
+name: Quality gates
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend, database, and acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Start PostgreSQL and backend
+        run: docker compose up -d --build postgres backend
+
+      - name: Run backend and system-acceptance tests
+        run: docker compose exec -T backend pytest
+
+      - name: Verify migrations
+        run: docker compose exec -T backend alembic check
+
+      - name: Verify retention preview
+        run: docker compose exec -T backend python -m app.commands.run_retention
+
+      - name: Verify environment separation examples
+        run: >-
+          docker compose run --rm --no-deps
+          -v "$PWD/infrastructure:/workspace/infrastructure:ro"
+          backend
+          python -m app.commands.validate_environment_separation
+          --staging /workspace/infrastructure/environments/staging.manifest.example.json
+          --production /workspace/infrastructure/environments/production.manifest.example.json
+
+      - name: Capture service logs after failure
+        if: failure()
+        run: docker compose logs --tail 200 backend postgres
+
+      - name: Stop test services
+        if: always()
+        run: docker compose down --volumes
+
+  frontend:
+    name: Frontend and production image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm test -- --run
+      - run: npm run build
+      - name: Build static production image
+        run: docker build --target production --tag screening-support-frontend:ci .
+
+  staging-definition:
+    name: Staging definition
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate staging Compose model
+        run: >-
+          docker compose
+          --env-file infrastructure/staging.env.example
+          --file infrastructure/compose.staging.yml
+          config --quiet
+
+      - name: Validate staging Caddy configuration
+        run: >-
+          docker run --rm
+          -e STAGING_HOST=staging.example.invalid
+          -v "$PWD/infrastructure/caddy/Caddyfile.staging:/etc/caddy/Caddyfile:ro"
+          caddy:2-alpine
+          caddy validate --config /etc/caddy/Caddyfile

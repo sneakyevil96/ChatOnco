@@ -1,0 +1,137 @@
+name: screening-platform-staging
+
+x-default-logging: &default-logging
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "9"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${STAGING_POSTGRES_DB:?Set STAGING_POSTGRES_DB}
+      POSTGRES_USER: ${STAGING_POSTGRES_USER:?Set STAGING_POSTGRES_USER}
+      POSTGRES_PASSWORD_FILE: /run/secrets/staging_postgres_password
+    secrets:
+      - source: staging_postgres_password
+        target: staging_postgres_password
+        mode: 0400
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - staging_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    logging: *default-logging
+
+  backend:
+    image: screening-support-backend:staging
+    build:
+      context: ../backend
+      target: production
+    environment: &backend-environment
+      APP_ENV: staging
+      LOG_LEVEL: ${STAGING_LOG_LEVEL:-INFO}
+      APPLICATION_SECRET_FILE: /run/secrets/staging_application
+      PROJECT_CONFIG_DIR: /workspace/backend/config/projects
+      WHATSAPP_PROVIDER: ${STAGING_WHATSAPP_PROVIDER:-mock}
+      ALLOWED_BROWSER_ORIGINS: https://${STAGING_HOST:?Set STAGING_HOST}
+      API_DOCS_ENABLED: "false"
+      STRUCTURED_LOGGING: "true"
+      OPERATOR_PANEL_ACCESS_MODE: ${STAGING_PANEL_ACCESS_MODE:-public}
+    secrets:
+      - source: staging_application
+        target: staging_application
+        mode: 0400
+    command:
+      [
+        "sh",
+        "-c",
+        "alembic upgrade head && python -m app.commands.sync_projects && uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log",
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    restart: unless-stopped
+    logging: *default-logging
+
+  outbox-worker:
+    image: screening-support-backend:staging
+    environment: *backend-environment
+    secrets:
+      - source: staging_application
+        target: staging_application
+        mode: 0400
+    command: ["python", "-m", "app.commands.run_outbox_worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+
+  frontend:
+    image: screening-support-frontend:staging
+    build:
+      context: ../frontend
+      target: production
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+    logging: *default-logging
+
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      STAGING_HOST: ${STAGING_HOST:?Set STAGING_HOST}
+    volumes:
+      - ./caddy/Caddyfile.staging:/etc/caddy/Caddyfile:ro
+      - staging_caddy_data:/data
+      - staging_caddy_config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+
+volumes:
+  staging_postgres_data:
+  staging_caddy_data:
+  staging_caddy_config:
+
+secrets:
+  staging_postgres_password:
+    file: ${STAGING_POSTGRES_PASSWORD_FILE:?Set STAGING_POSTGRES_PASSWORD_FILE}
+  staging_application:
+    file: ${STAGING_APPLICATION_SECRET_FILE:?Set STAGING_APPLICATION_SECRET_FILE}

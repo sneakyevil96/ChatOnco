@@ -9,7 +9,7 @@ They share one implementation but keep separate project configuration, operator 
 
 ## Current status
 
-Phases 1–7 provide the local platform, project-isolated data foundation, operator authentication, human-support workflow, deterministic FAQ pipeline, configurable Meta WhatsApp adapter, and the initial privacy/operations layer:
+Phases 1–8 provide the local platform, project-isolated data foundation, operator authentication, human-support workflow, deterministic FAQ pipeline, configurable Meta WhatsApp adapter, privacy/operations controls, and pre-production assurance:
 
 - FastAPI application with liveness and database-readiness endpoints;
 - validated project configuration for ONCODIR and ONCOSCREEN;
@@ -53,6 +53,12 @@ Phases 1–7 provide the local platform, project-isolated data foundation, opera
 - administrator-only operations metrics and audit-event visibility;
 - privacy-minimizing structured request/worker logging and API security headers;
 - production configuration validation and team-owned operational runbooks.
+- a synthetic full-system acceptance test from signed webhook through operator resolution and mock delivery;
+- GitHub Actions quality gates and automated dependency-update proposals;
+- a production-like, synthetic-data-only staging Compose definition;
+- machine-checkable staging/production resource-separation manifests;
+- a compiled static frontend image and initial accessibility improvements/checks;
+- release-acceptance, staging, and project-onboarding runbooks.
 
 The Meta integration is implemented but intentionally disabled. The repository contains no real phone-number ID, Meta token, app secret, verification token, approved template, or public webhook address. The current foundation also does **not** contain real FAQ content, MFA, or production deployment configuration.
 
@@ -182,6 +188,20 @@ Phase 7 runbooks:
 - [backup and restore](infrastructure/runbooks/backup-restore.md);
 - [incident response](infrastructure/runbooks/incident-response.md);
 - [production readiness](infrastructure/runbooks/production-readiness.md).
+
+Phase 8 assurance and onboarding:
+
+- [staging](infrastructure/runbooks/staging.md);
+- [release acceptance](infrastructure/runbooks/release-acceptance.md);
+- [project onboarding](infrastructure/runbooks/project-onboarding.md).
+
+Validate the example staging/production isolation declarations:
+
+`docker compose run --rm --no-deps -v <absolute-repository-path>/infrastructure:/workspace/infrastructure:ro backend python -m app.commands.validate_environment_separation --staging /workspace/infrastructure/environments/staging.manifest.example.json --production /workspace/infrastructure/environments/production.manifest.example.json`
+
+CI supplies the absolute repository path automatically. On a server, pass
+deployment-owned manifests instead. They contain resource identities only,
+never secret values.
 
 The backup technology and remote destination cannot be selected until the
 server/storage environment exists. Production nevertheless requires tested

@@ -1,0 +1,18 @@
+{
+  "environment": "staging",
+  "participant_data_allowed": false,
+  "public_origin": "https://staging.example.invalid",
+  "database_identity": "staging-postgres/screening-staging",
+  "project_configuration_identity": "staging-project-config",
+  "csrf_secret_identity": "staging-csrf-key",
+  "security_hash_secret_identity": "staging-security-hash-key",
+  "backup_key_identity": "staging-backup-key",
+  "backup_destination_identity": "off-host-backups/staging",
+  "storage_volume_identity": "staging-postgres-volume",
+  "meta_credential_identities": [
+    "staging-meta-test-credentials"
+  ],
+  "meta_phone_number_identities": [
+    "staging-meta-test-number"
+  ]
+}

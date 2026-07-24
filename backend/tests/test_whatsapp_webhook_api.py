@@ -5,24 +5,37 @@ import json
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 pytest.importorskip("pgvector")
 
 from app.api.dependencies import get_database_session
 from app.core.project_config import ProjectCatalog, ProjectId, WhatsAppConfig
+from app.db.models.auth import OperatorAccount, OperatorProjectMembership
 from app.db.models.conversation import Conversation, Ticket, WhatsAppMessage
-from app.db.models.enums import DeliveryStatus, MessageDirection, MessageType
+from app.db.models.enums import (
+    DeliveryStatus,
+    MessageDirection,
+    MessageType,
+    OperatorRole,
+    OutboxStatus,
+    TicketStatus,
+)
 from app.db.models.outbox import OutboxEntry
 from app.db.models.whatsapp import WhatsAppWebhookEvent
 from app.db.session import create_database_engine
+from app.integrations.whatsapp.mock import MockWhatsAppClient
 from app.integrations.whatsapp.secrets import MetaBindingSecrets, MetaSecretCatalog
 from app.main import create_app
+from app.security.passwords import hash_password
+from app.services.outbox_processor import OutboxProcessor
 
 
 pytestmark = pytest.mark.skipif(
@@ -33,6 +46,8 @@ pytestmark = pytest.mark.skipif(
 PROJECT_CONFIG_DIR = Path(__file__).parents[1] / "config" / "projects"
 APP_SECRET = "synthetic-webhook-app-secret"
 VERIFY_TOKEN = "synthetic-webhook-verify-token"
+ACCEPTANCE_PASSWORD = "Synthetic-Acceptance-Password-2026"
+ORIGIN = "http://localhost:8080"
 
 
 def enabled_catalog(*, interactive_actions: dict[str, str] | None = None) -> ProjectCatalog:
@@ -337,5 +352,143 @@ def test_delivery_statuses_are_monotonic_and_duplicate_safe() -> None:
                         WhatsAppWebhookEvent.provider_message_id == "wamid.synthetic-status"
                     )
                 ) == 2
+
+    asyncio.run(scenario())
+
+
+def test_acceptance_unknown_message_operator_resolution_and_mock_delivery() -> None:
+    async def scenario() -> None:
+        async with webhook_test_context() as (client, connection):
+            async with AsyncSession(
+                bind=connection,
+                expire_on_commit=False,
+                join_transaction_mode="create_savepoint",
+            ) as database:
+                account = OperatorAccount(
+                    email="phase8-acceptance@example.invalid",
+                    password_hash=hash_password(ACCEPTANCE_PASSWORD),
+                    must_change_password=False,
+                )
+                database.add(account)
+                await database.flush()
+                database.add(
+                    OperatorProjectMembership(
+                        project_id="ONCODIR",
+                        operator_account_id=account.id,
+                        role=OperatorRole.OPERATOR,
+                        is_active=True,
+                    )
+                )
+                await database.commit()
+
+            inbound = text_message(
+                "wamid.phase8-acceptance",
+                timestamp=int(datetime.now(UTC).timestamp()),
+            )
+            body = payload(messages=[inbound])
+            accepted = await client.post(
+                "/webhooks/whatsapp",
+                content=body,
+                headers=signed_headers(body),
+            )
+            assert accepted.status_code == 200
+
+            csrf = (await client.get("/api/v1/auth/csrf")).json()["csrf_token"]
+            login_response = await client.post(
+                "/api/v1/auth/login",
+                json={
+                    "email": account.email,
+                    "password": ACCEPTANCE_PASSWORD,
+                },
+                headers={"Origin": ORIGIN, "X-CSRF-Token": csrf},
+            )
+            assert login_response.status_code == 200
+            session_csrf = client.cookies["screening_csrf"]
+            mutation_headers = {
+                "Origin": ORIGIN,
+                "X-CSRF-Token": session_csrf,
+            }
+
+            queue = await client.get("/api/v1/projects/ONCODIR/tickets?queue=new")
+            assert queue.status_code == 200
+            assert len(queue.json()) == 1
+            ticket_id = queue.json()[0]["ticket_id"]
+            assert queue.json()[0]["masked_phone_number"].endswith("0123")
+            assert "40700000123" not in queue.text
+            assert (
+                await client.get("/api/v1/projects/ONCOSCREEN/tickets?queue=new")
+            ).status_code == 403
+
+            claimed = await client.post(
+                f"/api/v1/projects/ONCODIR/tickets/{ticket_id}/claim",
+                headers=mutation_headers,
+            )
+            assert claimed.status_code == 200
+            assert claimed.json()["status"] == TicketStatus.CLAIMED
+            reply = await client.post(
+                f"/api/v1/projects/ONCODIR/tickets/{ticket_id}/reply",
+                json={"text": "Răspuns administrativ sintetic de acceptanță."},
+                headers=mutation_headers,
+            )
+            assert reply.status_code == 201
+            resolved = await client.post(
+                f"/api/v1/projects/ONCODIR/tickets/{ticket_id}/resolve",
+                headers=mutation_headers,
+            )
+            assert resolved.status_code == 200
+            assert resolved.json()["status"] == TicketStatus.RESOLVED
+
+            session_factory = async_sessionmaker(
+                bind=connection,
+                class_=AsyncSession,
+                expire_on_commit=False,
+                join_transaction_mode="create_savepoint",
+            )
+            processor = OutboxProcessor(
+                session_factory,
+                MockWhatsAppClient(),
+                worker_id="phase8-acceptance-worker",
+                claim_seconds=30,
+                maximum_attempts=3,
+            )
+            processed = 0
+            while await processor.process_next():
+                processed += 1
+                assert processed < 10
+            assert processed == 3
+
+            async with AsyncSession(
+                bind=connection,
+                join_transaction_mode="create_savepoint",
+            ) as database:
+                outbox_entries = (
+                    await database.scalars(
+                        select(OutboxEntry).where(
+                            OutboxEntry.project_id == "ONCODIR"
+                        )
+                    )
+                ).all()
+                assert len(outbox_entries) == 3
+                assert all(
+                    entry.status == OutboxStatus.SENT for entry in outbox_entries
+                )
+                stored_ticket = await database.get(Ticket, UUID(ticket_id))
+                assert stored_ticket is not None
+                assert stored_ticket.status == TicketStatus.RESOLVED
+                outbound = (
+                    await database.scalars(
+                        select(WhatsAppMessage).where(
+                            WhatsAppMessage.project_id == "ONCODIR",
+                            WhatsAppMessage.direction == MessageDirection.OUTBOUND,
+                        )
+                    )
+                ).all()
+                assert len(outbound) == 3
+                assert all(
+                    message.delivery_status == DeliveryStatus.SENT
+                    and message.meta_message_id
+                    and message.meta_message_id.startswith("mock-")
+                    for message in outbound
+                )
 
     asyncio.run(scenario())
