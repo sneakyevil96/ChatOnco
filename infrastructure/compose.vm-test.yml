@@ -1,0 +1,132 @@
+name: screening-platform-vm-test
+
+x-default-logging: &default-logging
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "9"
+
+x-backend-environment: &backend-environment
+  APP_ENV: local
+  LOG_LEVEL: ${VM_TEST_LOG_LEVEL:-INFO}
+  APPLICATION_SECRET_FILE: /run/secrets/vm_test_application
+  PROJECT_CONFIG_DIR: /workspace/backend/config/projects
+  WHATSAPP_PROVIDER: mock
+  ALLOWED_BROWSER_ORIGINS: http://localhost:${VM_TEST_PORT:-8080}
+  API_DOCS_ENABLED: "false"
+  STRUCTURED_LOGGING: "true"
+  OPERATOR_PANEL_ACCESS_MODE: vpn
+
+x-application-secrets: &application-secrets
+  - vm_test_application
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: screening_vm_test
+      POSTGRES_USER: screening_vm_test
+      POSTGRES_PASSWORD_FILE: /run/secrets/vm_test_postgres_password
+    secrets:
+      - vm_test_postgres_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U screening_vm_test -d screening_vm_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - vm_test_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    logging: *default-logging
+
+  backend:
+    image: screening-support-backend:vm-test
+    build:
+      context: ../backend
+      target: production-core
+    environment: *backend-environment
+    secrets: *application-secrets
+    command:
+      - sh
+      - -c
+      - >-
+        alembic upgrade head &&
+        python -m app.commands.sync_projects &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    logging: *default-logging
+
+  outbox-worker:
+    image: screening-support-backend:vm-test
+    environment: *backend-environment
+    secrets: *application-secrets
+    command: ["python", "-m", "app.commands.run_outbox_worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    logging: *default-logging
+
+  frontend:
+    image: screening-support-frontend:vm-test
+    build:
+      context: ../frontend
+      target: production
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    logging: *default-logging
+
+  caddy:
+    image: caddy:2-alpine
+    volumes:
+      - ./caddy/Caddyfile.vm-test:/etc/caddy/Caddyfile:ro
+    ports:
+      - "${VM_TEST_BIND_ADDRESS:-127.0.0.1}:${VM_TEST_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    logging: *default-logging
+
+volumes:
+  vm_test_postgres_data:
+
+secrets:
+  vm_test_postgres_password:
+    file: ${VM_TEST_POSTGRES_PASSWORD_FILE:?Set VM_TEST_POSTGRES_PASSWORD_FILE}
+  vm_test_application:
+    file: ${VM_TEST_APPLICATION_SECRET_FILE:?Set VM_TEST_APPLICATION_SECRET_FILE}

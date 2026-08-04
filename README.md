@@ -195,6 +195,12 @@ Phase 8 assurance and onboarding:
 - [release acceptance](infrastructure/runbooks/release-acceptance.md);
 - [project onboarding](infrastructure/runbooks/project-onboarding.md).
 
+For the temporary Debian VM without stable DNS or HTTPS, use the
+[internal VM-test deployment](infrastructure/runbooks/vm-test.md). It serves
+compiled images with generated deployment secrets and binds HTTP only to the
+VM loopback interface for access through an SSH tunnel. It is strictly limited
+to synthetic data and the mock WhatsApp provider.
+
 Validate the example staging/production isolation declarations:
 
 `docker compose run --rm --no-deps -v <absolute-repository-path>/infrastructure:/workspace/infrastructure:ro backend python -m app.commands.validate_environment_separation --staging /workspace/infrastructure/environments/staging.manifest.example.json --production /workspace/infrastructure/environments/production.manifest.example.json`

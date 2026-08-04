@@ -14,9 +14,7 @@ services:
       POSTGRES_USER: ${STAGING_POSTGRES_USER:?Set STAGING_POSTGRES_USER}
       POSTGRES_PASSWORD_FILE: /run/secrets/staging_postgres_password
     secrets:
-      - source: staging_postgres_password
-        target: staging_postgres_password
-        mode: 0400
+      - staging_postgres_password
     healthcheck:
       test:
         [
@@ -47,9 +45,7 @@ services:
       STRUCTURED_LOGGING: "true"
       OPERATOR_PANEL_ACCESS_MODE: ${STAGING_PANEL_ACCESS_MODE:-public}
     secrets:
-      - source: staging_application
-        target: staging_application
-        mode: 0400
+      - staging_application
     command:
       [
         "sh",
@@ -79,9 +75,7 @@ services:
     image: screening-support-backend:staging
     environment: *backend-environment
     secrets:
-      - source: staging_application
-        target: staging_application
-        mode: 0400
+      - staging_application
     command: ["python", "-m", "app.commands.run_outbox_worker"]
     depends_on:
       postgres:
@@ -99,7 +93,7 @@ services:
     expose:
       - "80"
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
       interval: 10s
       timeout: 5s
       retries: 6
