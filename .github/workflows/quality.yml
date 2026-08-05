@@ -83,6 +83,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Validate infrastructure shell syntax
+        run: find infrastructure/scripts -type f -name '*.sh' -exec sh -n {} \;
+
       - name: Validate staging Compose model
         run: >-
           docker compose

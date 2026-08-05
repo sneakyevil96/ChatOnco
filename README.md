@@ -195,6 +195,11 @@ Phase 8 assurance and onboarding:
 - [release acceptance](infrastructure/runbooks/release-acceptance.md);
 - [project onboarding](infrastructure/runbooks/project-onboarding.md).
 
+Phase 9A team-managed VM operations:
+
+- [Debian VM security baseline](infrastructure/runbooks/vm-hardening.md);
+- [VM-test maintenance, restart, and rollback](infrastructure/runbooks/vm-maintenance.md).
+
 For the temporary Debian VM without stable DNS or HTTPS, use the
 [internal VM-test deployment](infrastructure/runbooks/vm-test.md). It serves
 compiled images with generated deployment secrets and binds HTTP only to the

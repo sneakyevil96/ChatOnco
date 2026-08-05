@@ -41,6 +41,10 @@ Inspect health without printing secrets:
 
 `curl --fail http://127.0.0.1:8080/api/v1/health/ready`
 
+Verify the team-managed host baseline without displaying secret values:
+
+`sudo sh infrastructure/scripts/verify-vm-test-host.sh`
+
 The deployment uses compiled frontend assets, the dependency-minimal backend
 image, PostgreSQL with pgvector, Caddy, and a dedicated outbox worker. It has no
 source bind mounts, hot reload, test dependencies, embedding model, or Meta
@@ -70,8 +74,9 @@ because the service is not bound to the LAN address.
 
 ## Update and stop
 
-For a reviewed update, run `git pull --ff-only`, inspect the revision, then
-repeat `up -d --build`. Migrations run before the API starts.
+Follow the [VM-test maintenance, restart, and rollback](vm-maintenance.md)
+procedure for reviewed changes. Do not reboot a DHCP-addressed host until its
+post-reboot address is known or an administrator has console access.
 
 Stop containers without deleting the database volume:
 
