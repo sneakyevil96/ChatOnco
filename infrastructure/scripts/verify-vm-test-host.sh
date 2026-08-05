@@ -17,6 +17,15 @@ check_service() {
     fi
 }
 
+check_enabled() {
+    service_name="$1"
+    if systemctl is-enabled --quiet "$service_name"; then
+        pass "$service_name is enabled"
+    else
+        fail "$service_name must be enabled"
+    fi
+}
+
 check_sshd_value() {
     key="$1"
     expected="$2"
@@ -71,7 +80,7 @@ fi
 
 check_service ssh
 check_service docker
-check_service ufw
+check_enabled ufw
 check_service unattended-upgrades
 
 if [ "$(timedatectl show -p NTPSynchronized --value)" = "yes" ]; then pass "system clock is synchronized"; else fail "system clock is not synchronized"; fi

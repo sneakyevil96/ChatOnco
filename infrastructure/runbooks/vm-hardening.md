@@ -69,8 +69,8 @@ From the reviewed repository revision on the VM:
 
 `sudo sh infrastructure/scripts/verify-vm-test-host.sh`
 
-The script is read-only. It checks effective SSH policy, UFW defaults and the
-presence of an SSH rule, critical services, NTP, unattended upgrades, host
+The script is read-only. It checks effective SSH policy, the active UFW rules
+and boot enablement, critical services, NTP, unattended upgrades, host
 listeners, secret-file metadata, disk usage, application readiness, and the
 reboot-required marker. It deliberately does not display secret contents.
 
