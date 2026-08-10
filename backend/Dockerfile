@@ -9,6 +9,7 @@ WORKDIR /workspace/backend
 COPY pyproject.toml ./
 COPY src ./src
 COPY config ./config
+COPY content ./content
 COPY alembic.ini ./
 COPY alembic ./alembic
 COPY scripts ./scripts

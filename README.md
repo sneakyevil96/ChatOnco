@@ -60,7 +60,7 @@ Phases 1–8 provide the local platform, project-isolated data foundation, opera
 - a compiled static frontend image and initial accessibility improvements/checks;
 - release-acceptance, staging, and project-onboarding runbooks.
 
-The Meta integration is implemented but intentionally disabled. The repository contains no real phone-number ID, Meta token, app secret, verification token, approved template, or public webhook address. The current foundation also does **not** contain real FAQ content, MFA, or production deployment configuration.
+The Meta integration is implemented but intentionally disabled. The repository contains no real phone-number ID, Meta token, app secret, verification token, approved template, or public webhook address. It contains the reviewed ONCODIR LIP-01 v1 FAQ collection, but still has no ONCOSCREEN FAQ, MFA, or production deployment configuration.
 
 ## Local prerequisites
 
@@ -113,7 +113,13 @@ This command refuses to run outside `local` or `test` environments and never con
 
 ## Controlled FAQ workflow
 
-Semantic retrieval is intentionally disabled for both projects until approved FAQ collections and reviewed Romanian evaluation sets exist. Exact matches can return only currently valid, published answers. Every uncertain, ambiguous, expired, or unconfigured result escalates.
+Semantic retrieval is intentionally disabled for both projects until reviewed Romanian evaluation sets exist and project-specific thresholds are calibrated. Exact matches can return only currently valid, published answers. Every uncertain, ambiguous, expired, or unconfigured result escalates.
+
+The reviewed ONCODIR LIP-01 v1 collection is stored at
+`backend/content/approved/ONCODIR/faq-v1.csv`. Its provenance and review
+mapping are documented beside the file. ONCOSCREEN still has no approved FAQ
+collection, and ONCODIR semantic retrieval remains disabled until a labelled
+evaluation set is reviewed and calibrated.
 
 Validate an approved UTF-8 CSV without changing the database:
 
