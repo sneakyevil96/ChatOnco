@@ -1,0 +1,36 @@
+services:
+  backend:
+    environment:
+      WHATSAPP_SECRET_FILE: /run/secrets/vm_test_whatsapp
+    secrets:
+      - vm_test_whatsapp
+
+  webhook-gateway:
+    image: caddy:2-alpine
+    volumes:
+      - ./caddy/Caddyfile.meta-quick-tunnel:/etc/caddy/Caddyfile:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    expose:
+      - "80"
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command:
+      - tunnel
+      - --no-autoupdate
+      - --url
+      - http://webhook-gateway:80
+    depends_on:
+      - webhook-gateway
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+secrets:
+  vm_test_whatsapp:
+    file: ${VM_TEST_WHATSAPP_SECRET_FILE:-/etc/oncodir-oncoscreen/meta/whatsapp-webhook.json}

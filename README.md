@@ -82,6 +82,10 @@ Useful endpoints:
 - `GET /webhooks/whatsapp` (Meta subscription verification when configured)
 - `POST /webhooks/whatsapp` (signed Meta webhook deliveries when configured)
 
+For temporary Meta callback verification from a private VM, see
+`infrastructure/runbooks/meta-quick-tunnel.md`. The Quick Tunnel exposes only the
+WhatsApp webhook path and is not a production endpoint.
+
 The local database is not published to the host. Caddy is the only service with a host port.
 
 ## Direct development
