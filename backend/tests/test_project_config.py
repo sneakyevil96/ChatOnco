@@ -18,7 +18,11 @@ def test_catalog_loads_both_projects_with_whatsapp_disabled() -> None:
         ProjectId.ONCOSCREEN,
     ]
     assert all(not project.whatsapp.enabled for project in catalog.all())
-    assert all(project.whatsapp.phone_number_id is None for project in catalog.all())
+    oncodir = catalog.get(ProjectId.ONCODIR)
+    assert oncodir.whatsapp.display_phone_number == "+40747040475"
+    assert oncodir.whatsapp.phone_number_id == "1309971875522817"
+    assert oncodir.whatsapp.waba_id == "1390440176375212"
+    assert catalog.get(ProjectId.ONCOSCREEN).whatsapp.phone_number_id is None
     assert all(project.whatsapp.webhook_binding is None for project in catalog.all())
     assert all(project.whatsapp.templates == [] for project in catalog.all())
     assert all(not project.faq_retrieval.semantic_enabled for project in catalog.all())

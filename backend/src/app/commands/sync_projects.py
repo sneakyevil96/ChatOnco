@@ -56,7 +56,9 @@ async def synchronize_projects() -> None:
                 whatsapp_statement = insert(ProjectWhatsAppConfiguration).values(
                     project_id=project_id,
                     is_enabled=whatsapp.enabled,
+                    display_phone_number=whatsapp.display_phone_number,
                     phone_number_id=whatsapp.phone_number_id,
+                    waba_id=whatsapp.waba_id,
                     credential_binding=whatsapp.credential_binding,
                     webhook_binding=whatsapp.webhook_binding,
                 )
@@ -64,7 +66,9 @@ async def synchronize_projects() -> None:
                     index_elements=[ProjectWhatsAppConfiguration.project_id],
                     set_={
                         "is_enabled": whatsapp.enabled,
+                        "display_phone_number": whatsapp.display_phone_number,
                         "phone_number_id": whatsapp.phone_number_id,
+                        "waba_id": whatsapp.waba_id,
                         "credential_binding": whatsapp.credential_binding,
                         "webhook_binding": whatsapp.webhook_binding,
                         "updated_at": func.now(),

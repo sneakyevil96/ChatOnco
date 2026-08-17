@@ -57,6 +57,7 @@ class ProjectWhatsAppConfiguration(
     is_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")
     )
+    display_phone_number: Mapped[str | None] = mapped_column(String(16))
     phone_number_id: Mapped[str | None] = mapped_column(String(128))
     waba_id: Mapped[str | None] = mapped_column(String(128))
     meta_app_id: Mapped[str | None] = mapped_column(String(128))

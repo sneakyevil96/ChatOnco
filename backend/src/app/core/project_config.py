@@ -59,7 +59,12 @@ class WhatsAppConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool = False
+    display_phone_number: str | None = Field(
+        default=None,
+        pattern=r"^\+[1-9][0-9]{7,14}$",
+    )
     phone_number_id: str | None = None
+    waba_id: str | None = None
     credential_binding: str | None = None
     webhook_binding: str | None = None
     unsupported_warning_cooldown_minutes: int = Field(default=10, ge=1, le=1440)

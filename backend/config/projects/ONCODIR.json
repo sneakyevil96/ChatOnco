@@ -30,7 +30,9 @@
   },
   "whatsapp": {
     "enabled": false,
-    "phone_number_id": null,
+    "display_phone_number": "+40747040475",
+    "phone_number_id": "1309971875522817",
+    "waba_id": "1390440176375212",
     "credential_binding": null,
     "webhook_binding": null,
     "unsupported_warning_cooldown_minutes": 10,
