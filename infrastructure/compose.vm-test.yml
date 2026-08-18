@@ -1,4 +1,4 @@
-name: screening-platform-vm-test
+name: ${VM_TEST_COMPOSE_PROJECT_NAME:-screening-platform-vm-test}
 
 x-default-logging: &default-logging
   driver: local

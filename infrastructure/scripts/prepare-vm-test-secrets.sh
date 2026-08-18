@@ -2,6 +2,14 @@
 set -eu
 
 secret_directory="${1:-/etc/oncodir-oncoscreen/vm-test}"
+compose_project_name="${VM_TEST_COMPOSE_PROJECT_NAME:-screening-platform-vm-test}"
+
+case "$compose_project_name" in
+    *[!a-z0-9_-]* | "")
+        echo "VM_TEST_COMPOSE_PROJECT_NAME must contain only lowercase letters, digits, underscores, or hyphens." >&2
+        exit 1
+        ;;
+esac
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "Run this command through sudo so the secret files are root-owned." >&2
@@ -32,7 +40,8 @@ printf '{\n  "database_url": "postgresql+psycopg://screening_vm_test:%s@postgres
     "$postgres_password" \
     "$csrf_signing_key" \
     "$security_hash_key" > "$application_secret_file"
-printf 'VM_TEST_BIND_ADDRESS=127.0.0.1\nVM_TEST_PORT=8080\nVM_TEST_LOG_LEVEL=INFO\nVM_TEST_POSTGRES_PASSWORD_FILE=%s\nVM_TEST_APPLICATION_SECRET_FILE=%s\n' \
+printf 'VM_TEST_COMPOSE_PROJECT_NAME=%s\nVM_TEST_BIND_ADDRESS=127.0.0.1\nVM_TEST_PORT=8080\nVM_TEST_LOG_LEVEL=INFO\nVM_TEST_POSTGRES_PASSWORD_FILE=%s\nVM_TEST_APPLICATION_SECRET_FILE=%s\n' \
+    "$compose_project_name" \
     "$postgres_password_file" \
     "$application_secret_file" > "$environment_file"
 
