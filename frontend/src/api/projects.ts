@@ -4,7 +4,7 @@ export interface ProjectBranding {
 }
 
 export interface PublicProject {
-  project_id: "ONCODIR" | "ONCOSCREEN";
+  project_id: "ONCODIR" | "ONCOSCREEN" | "HRIA";
   public_name: string;
   branding: ProjectBranding;
   membership_id: string;

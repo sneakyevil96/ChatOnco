@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 class ProjectId(StrEnum):
     ONCODIR = "ONCODIR"
     ONCOSCREEN = "ONCOSCREEN"
+    HRIA = "HRIA"
 
 
 class BrandingConfig(BaseModel):
@@ -155,7 +156,11 @@ class ProjectCatalog:
         return self._projects[project_id]
 
     def all(self) -> tuple[ProjectConfig, ...]:
-        return tuple(self._projects[project_id] for project_id in ProjectId)
+        return tuple(
+            self._projects[project_id]
+            for project_id in ProjectId
+            if project_id in self._projects
+        )
 
     def by_phone_number_id(self, phone_number_id: str) -> ProjectConfig | None:
         matches = [

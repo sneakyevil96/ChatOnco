@@ -4,7 +4,7 @@ export type ProjectRole = "operator" | "administrator";
 
 export interface Membership {
   membership_id: string;
-  project_id: "ONCODIR" | "ONCOSCREEN";
+  project_id: "ONCODIR" | "ONCOSCREEN" | "HRIA";
   project_name: string;
   role: ProjectRole;
 }
@@ -48,4 +48,3 @@ export function completePasswordReset(
     body: JSON.stringify({ email, reset_token: resetToken, new_password: newPassword }),
   });
 }
-

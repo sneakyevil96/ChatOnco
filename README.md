@@ -1,9 +1,10 @@
-# ONCODIR and ONCOSCREEN support platform
+# Shared ONCODIR, ONCOSCREEN, and HRIA support platform
 
 This repository contains the shared software platform for two distinct cancer-screening projects:
 
 - `ONCODIR`
 - `ONCOSCREEN`
+- `HRIA`
 
 They share one implementation but keep separate project configuration, operator access, WhatsApp configuration, FAQ content, conversations, tickets, and retention settings. Public interfaces must always use the configured project name rather than a combined product label.
 

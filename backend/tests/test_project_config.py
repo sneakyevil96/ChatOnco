@@ -10,12 +10,13 @@ from app.main import create_app
 PROJECT_CONFIG_DIR = Path(__file__).parents[1] / "config" / "projects"
 
 
-def test_catalog_loads_both_projects_with_whatsapp_disabled() -> None:
+def test_catalog_loads_all_projects_with_whatsapp_disabled() -> None:
     catalog = ProjectCatalog.load(PROJECT_CONFIG_DIR)
 
     assert [project.project_id for project in catalog.all()] == [
         ProjectId.ONCODIR,
         ProjectId.ONCOSCREEN,
+        ProjectId.HRIA,
     ]
     assert all(not project.whatsapp.enabled for project in catalog.all())
     oncodir = catalog.get(ProjectId.ONCODIR)
@@ -28,7 +29,9 @@ def test_catalog_loads_both_projects_with_whatsapp_disabled() -> None:
     assert all(not project.faq_retrieval.semantic_enabled for project in catalog.all())
     assert all(project.faq_retrieval.semantic_threshold is None for project in catalog.all())
     assert all(project.faq_retrieval.minimum_score_gap is None for project in catalog.all())
-    assert all(project.content_status == "development_placeholder" for project in catalog.all())
+    assert catalog.get(ProjectId.ONCODIR).content_status == "approved_faq_v1"
+    assert catalog.get(ProjectId.ONCOSCREEN).content_status == "development_placeholder"
+    assert catalog.get(ProjectId.HRIA).content_status == "configuration_pending"
 
 
 def test_project_api_requires_authentication() -> None:

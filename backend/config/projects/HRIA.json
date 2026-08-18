@@ -1,0 +1,42 @@
+{
+  "project_id": "HRIA",
+  "public_name": "HRIA",
+  "content_status": "configuration_pending",
+  "faq_collection_key": "hria",
+  "contact_information": null,
+  "branding": {
+    "primary_color": "#176B5B",
+    "logo_url": null
+  },
+  "messages": {
+    "fallback": "Nu am încă un răspuns aprobat pentru această întrebare. Solicitarea a fost transmisă unui operator.",
+    "privacy_warning": "Acest chatbot oferă informații bazate pe datele aprobate ale proiectului HRIA. Nu transmiteți parole, credențiale sau alte informații confidențiale.",
+    "unsupported_message": "Momentan, chatbotul poate procesa doar mesaje text. Solicitarea a fost transmisă unui operator."
+  },
+  "retention": {
+    "message_content_days": 90,
+    "tickets_and_notes_days": 365,
+    "audit_events_days": 730,
+    "application_logs_days": 90,
+    "backups_days": 30,
+    "privacy_warning_inactivity_days": 30,
+    "resolved_ticket_reopen_days": 7
+  },
+  "faq_retrieval": {
+    "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "semantic_enabled": false,
+    "semantic_threshold": null,
+    "minimum_score_gap": null
+  },
+  "whatsapp": {
+    "enabled": false,
+    "display_phone_number": null,
+    "phone_number_id": null,
+    "waba_id": null,
+    "credential_binding": null,
+    "webhook_binding": null,
+    "unsupported_warning_cooldown_minutes": 10,
+    "interactive_actions": {},
+    "templates": []
+  }
+}
